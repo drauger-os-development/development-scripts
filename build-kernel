@@ -1,0 +1,217 @@
+#!/bin/bash
+# -*- coding: utf-8 -*-
+#
+#  build-kernel
+#  
+#  Copyright 2020 Thomas Castleman <contact@draugeros.org>
+#  
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#  
+#
+ARCH="$1"
+HELP="Usage:\n\n\tbuild-kernel [amd64|arm64|pull|stash|pop|clean] [config]\n\nPassing \"arm64\" or \"amd64\" will trigger a build of a new kernel for that arch.\nPassing \"config\" along with a given arch will trigger the CLI config menu to appear.\nPassing \"pull\" will trigger a git pull.\nPassing \"stash\" will attempt to stash any changes you have made, so you can pull.\nPassing \"pop\" will attempt to pop any changes you have made, so you can build with any changes necessary.\nPassing \"clean\" will attempt to clean the local repo. It cannot be used with any other options.\n\"pull\" and \"config\" cannot be used together. Default action in this instance is a git pull.\n\"stash\" and \"config\" cannot be used together. Default action in this instance is a git stash.\n\"pop\" and \"config\" cannot be used together. Default action in this instance is a git pop."
+
+if [ -f $HOME/.config/drauger/build-kernel.conf ]; then
+	eval $(grep -v '^#' $HOME/.config/drauger/build-kernel.conf)
+else
+	echo "Running first-time config..."
+	mkdir -p $HOME/.config/drauger
+	KERNEL_REPO=$(zenity --entry --text="Where is the kernel git repository at?")
+	CONFIG_DIR=$(zenity --entry --text="Where should back-up configurations be stored? Default is sibling directory to the kernel repository, named CONFIG.")
+	CONFIG_DIR=${CONFIG_DIR:-"$KERNEL_REPO/../CONFIG"}
+	DUMP_DIR=$(zenity --entry --text="Where would you like the generated *.debs to be dumped? Default is ~/Downloads/DEBS.")
+	DUMP_DIR=${DUMP_DIR:-"$HOME/Downloads/DEBS"}
+	MOVE_DIR=$(zenity --entry --text="Where would you like the script to move to in order to call update-package? Default is ~/Downloads.")
+	MOVE_DIR=${MOVE_DIR:-"$HOME/Downloads"}
+	builtin echo -e "# Config for build-kernel\n# Don't end file paths with forward-slashes\n# Linux Kernel Git repo\nKERNEL_REPOX=$KERNEL_REPO\n# Back-up configuration directory\nCONFIG_DIR=$CONFIG_DIR\n# Location to dump *.deb files\nDUMP_DIR=$DUMP_DIR\n# Location to move to to call update-package\nHOME_DIR=$HOME_DIR\n" > $HOME/.config/drauger/build-kernel.conf
+fi
+
+function build_kernel ()
+{
+	ARCH="$1"
+	# Check for last known build
+	#   We like to build a new kernel every 7-10 days
+	if [ -f $HOME/.last-build-$ARCH.conf ]; then
+		last_build=$(<$HOME/.last-build-$ARCH.conf)
+		echo -e "\nLast known build was $last_build\n"
+		read -p "Continue? [y/N]: " ans
+		if [ "$ans" == "n" ] || [ "$ans" == "N" ]; then
+			exit 2
+		fi
+	fi
+	cd $KERNEL_REPO
+	# Update the local git repository
+	echo -e "\nPulling . . . \n"
+	notify-send --app-name="build-kernel-$ARCH" "Pulling . . ."
+	git pull
+	read -p "Build deb? [y/N]: " ans
+	if [ "$ans" == "N" ] || [ "$ans" == "n" ]; then
+		exit
+	fi
+	# Make sure we have the right config
+	cat $CONFIG_DIR/CONFIG-$ARCH > $KERNEL_REPO/.config
+	# Build the deb
+	echo -e "\nBuilding deb pkg . . . \n"
+	notify-send --app-name="build-kernel-amd64" "Building deb pkg . . ."
+	if [ "$ARCH" == "amd64" ]; then
+		make -j $(nproc) bindeb-pkg
+	elif [ "$ARCH" == "arm64" ]; then
+		make -j $(nproc) ARCH=arm64 CROSS_COMPILE=/usr/bin/aarch64-linux-gnu- bindeb-pkg
+	fi
+	# Clean up
+	echo -e "\nCleaning . . . \n"
+	notify-send --app-name="build-kernel-$ARCH" "Cleaning . . . "
+	make -j $(nproc) clean
+	cd ..
+	FILES=$(find . -maxdepth 1 -type f | sed 's#./##g')
+	MOVE=$(echo "$FILES" | grep .deb$)
+	REMOVE=$(echo "$FILES" | grep -v .deb$)
+	rm -v $REMOVE
+	echo -e "\nMoving . . . \n"
+	notify-send --app-name="build-kernel-$ARCH" "Moving . . ."
+	# move debs
+	mv --target-directory=$DUMP_DIR $MOVE
+	cd $MOVE_DIR
+	LIST=$(ls DEBS)
+	# Version output
+	echo -e "\nVersion numbers for each package:"
+	for each in $LIST; do
+		echo "$each :  $(dpkg-deb -f DEBS/$each Version)"
+	done
+	# add debs to the repo
+	read -p "Would you like to go ahead and add the kernel *.deb files to the repo? [y/N]: " ans
+	if [ "$ans" == "Y" ] || [ "$ans" == "y" ]; then
+		set -e
+		set -o pipefail
+		read -p "What is the distribution codename?: " codename
+		for each in $LIST; do
+			$MOVE_DIR/update-package $codename $each
+			rm DEBS/$each
+		done
+	fi
+	# update last build time
+	if [ -f $HOME/.last-build-$ARCH.conf ]; then
+		date > $HOME/.last-build-$ARCH.conf
+	fi
+}
+
+function build_config ()
+{
+	ARCH="$1"
+	cd $HOME/Dropbox/GitHub/MISC/linux
+	set -e
+	set -o pipefail
+	cp $CONFIG_DIR/CONFIG-$ARCH .config
+	if [ "$ARCH" == "amd64" ]; then
+		make -j $(nproc) menuconfig
+	elif [ "$ARCH" == "arm64" ]; then
+		make -j $(nproc) ARCH=arm64 CROSS_COMPILE=/usr/bin/aarch64-linux-gnu- menuconfig
+	fi
+	cp .config $CONFIG_DIR/CONFIG-$ARCH
+	echo -e "\nYour new config is ready to build a new kernel.\n"
+}
+
+function pull ()
+{
+	cd $KERNEL_REPO
+	git pull
+}
+
+function stash ()
+{
+	cd $KERNEL_REPO
+	git stash
+}
+
+function pop ()
+{
+	cd $KERNEL_REPO
+	git stash pop
+}
+
+function clean ()
+{
+	cd $KERNEL_REPO
+	make -j $(nproc) clean
+}
+
+if [ "$ARCH" == "AMD64" ] || [ "$ARCH" == "amd64" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "amd" ] || [ "$ARCH" == "x86" ]; then
+	if [ "$2" == "CONFIG" ] || [ "$2" == "config" ]; then
+		{ time build_config "amd64" 2>&1; } 2>$HOME/.time.log
+	else
+		{ time build_kernel "amd64" 2>&1; } 2>$HOME/.time.log
+	fi
+	min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
+	sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
+	if [ ! -f $HOME/Documents/.running-time.log ]; then
+		echo -e "Drauger OS Development Time Log\nDO NOT MODIFY OR DELETE\nMINUTES\tSECONDS" > $HOME/Documents/.running-time.log
+	fi
+	echo -e "$min\t$sec" >> $HOME/Documents/.running-time.log
+	echo -e "\nTime Logged\n"
+elif [ "$ARCH" == "ARM64" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "arm" ]; then
+	if [ "$2" == "CONFIG" ] || [ "$2" == "config" ]; then
+		{ time build_config "arm64" 2>&1; } 2>$HOME/.time.log
+	else
+		{ time build_kernel "arm64" 2>&1; } 2>$HOME/.time.log
+	fi
+	min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
+	sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
+	if [ ! -f $HOME/Documents/.running-time.log ]; then
+		echo -e "Drauger OS Development Time Log\nDO NOT MODIFY OR DELETE\nMINUTES\tSECONDS" > $HOME/Documents/.running-time.log
+	fi
+	echo -e "$min\t$sec" >> $HOME/Documents/.running-time.log
+	echo -e "\nTime Logged\n"
+elif [ "$ARCH" == "PULL" ] || [ "$ARCH" == "pull" ]; then
+	{ time pull 2>&1; } 2>$HOME/.time.log
+	min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
+	sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
+	if [ ! -f $HOME/Documents/.running-time.log ]; then
+		echo -e "Drauger OS Development Time Log\nDO NOT MODIFY OR DELETE\nMINUTES\tSECONDS" > $HOME/Documents/.running-time.log
+	fi
+	echo -e "$min\t$sec" >> $HOME/Documents/.running-time.log
+	echo -e "\nTime Logged\n"
+elif [ "$ARCH" == "STASH" ] || [ "$ARCH" == "stash" ]; then
+	{ time stash 2>&1; } 2>$HOME/.time.log
+	min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
+	sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
+	if [ ! -f $HOME/Documents/.running-time.log ]; then
+		echo -e "Drauger OS Development Time Log\nDO NOT MODIFY OR DELETE\nMINUTES\tSECONDS" > $HOME/Documents/.running-time.log
+	fi
+	echo -e "$min\t$sec" >> $HOME/Documents/.running-time.log
+	echo -e "\nTime Logged\n"
+elif [ "$ARCH" == "POP" ] || [ "$ARCH" == "pop" ]; then
+	{ time pop 2>&1; } 2>$HOME/.time.log
+	min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
+	sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
+	if [ ! -f $HOME/Documents/.running-time.log ]; then
+		echo -e "Drauger OS Development Time Log\nDO NOT MODIFY OR DELETE\nMINUTES\tSECONDS" > $HOME/Documents/.running-time.log
+	fi
+	echo -e "$min\t$sec" >> $HOME/Documents/.running-time.log
+	echo -e "\nTime Logged\n"
+elif [ "$ARCH" == "--help" ] || [ "$ARCH" == "-h" ]; then
+	echo -e "\n$HELP\n"
+elif [ "$ARCH" == "CLEAN" ] || [ "$ARCH" == "clean" ]; then
+	{ time clean 2>&1; } 2>$HOME/.time.log
+	min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
+	sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
+	if [ ! -f $HOME/Documents/.running-time.log ]; then
+		echo -e "Drauger OS Development Time Log\nDO NOT MODIFY OR DELETE\nMINUTES\tSECONDS" > $HOME/Documents/.running-time.log
+	fi
+	echo -e "$min\t$sec" >> $HOME/Documents/.running-time.log
+	echo -e "\nTime Logged\n"
+else
+	echo -e "\nOption \"$ARCH\" not recognized\n$HELP\n" 1>&2
+fi

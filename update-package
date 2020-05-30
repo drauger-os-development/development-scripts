@@ -1,0 +1,6 @@
+#!/bin/bash
+if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+	echo -e "Run update-package to update a package in the Drauger OS apt repo.\nUsage:\n	./update-package CODENAME DEB_FILE_NAME\nDo not pass file paths."
+	exit 0
+fi
+reprepro -b apt-repo/ includedeb "$1" DEBS/"$2"

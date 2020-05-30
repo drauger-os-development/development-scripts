@@ -1,0 +1,70 @@
+#!/bin/bash
+set -e
+if [ -f $HOME/.config/drauger/make-iso.conf ]; then
+	eval $(grep -v '^#' $HOME/.config/drauger/make-iso.conf)
+else
+echo "Running first-time config..."
+	mkdir -p $HOME/.config/drauger
+	CHROOT_PREFIX=$(zenity --entry --text="What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
+	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp.")
+	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp"}
+	ISO_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be stored? Default is ~/Downloads.")
+	BUILD_PREFIX=${BUILD_PREFIX:-"$HOME/Downloads"}
+	builtin echo -e "# Make-ISO config\n# Don't end file paths with forward-slashes\n# Chroot locations\nCHROOT_PREFIX=$CHROOT_PREFIX\n# Location to build ISOs\nBUILD_PREFIX=$BUILD_PREFIX\n# Location to store ISOs\nISO_PREFIX=$ISO_PREFIX\n" > $HOME/.config/drauger/make-iso.conf
+fi
+ARCH="$1"
+CODENAME="$2"
+if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "ARM" ] || [ "$ARCH" == "ARM64" ]; then
+	ARCH="ARM64"
+elif [ "$ARCH" == "-h" ] || [ "$ARCH" == "--help" ]; then
+	echo -e "\nmake-iso [ARCH] [CODENAME]\n\n\tPass the Arch and the codename to build an ISO for that version of Drauger OS,\n\tprovided the chroot is in the correct location.\n"
+	exit 0
+else
+	ARCH="AMD64"
+fi
+CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
+read -p "Please make sure that you only have one kernel installed. Press enter when you are sure this is the case inside the chroot.
+Furthermore, please ensure that /proc has been unmounted." ans
+function_makeiso () {
+	echo "Makeing $ARCH ISO"
+	cd $BUILD_PREFIX
+	VERSION=$(cat $CHROOT_LOCATION/etc/lsb-release | grep 'DISTRIB_RELEASE=' | sed 's/DISTRIB_RELEASE=//g')
+	#clean up the chroot
+	sudo rm -rf $CHROOT_LOCATION/var/crash/* $CHROOT_LOCATION/root/* $CHROOT_LOCATION/home/live/.bash_history $CHROOT_LOCATION/var/log/*
+	#make work files
+	mkdir -p {$BUILD_PREFIX/scratch,$BUILD_PREFIX/image/live}
+	echo -e "\nMaking Squashfs\n"
+	notify-send --app-name="make-iso" "Making Squashfs"
+	#make Squashfs from chroot
+	sudo mksquashfs $CHROOT_LOCATION $BUILD_PREFIX/image/live/filesystem.squashfs -comp xz -Xbcj x86 -Xdict-size 8k -e boot && notify-send --app-name="make-iso" "Squashfs Completed"
+	#copy initrd and kernel
+	cp $CHROOT_LOCATION/boot/vmlinuz-* $BUILD_PREFIX/image/vmlinuz
+	cp $CHROOT_LOCATION/boot/initrd.img-* $BUILD_PREFIX/image/initrd || cp $CHROOT_LOCATION/boot/initrd.img $BUILD_PREFIX/image/initrd
+	echo -e "search --set=root --file /DRAUGER_OS\n\ninsmod all_video\n\nset default=\"0\"\nset timeout=30\n\nmenuentry \"Drauger OS $VERSION Live\" {\n\tlinux /vmlinuz boot=live quiet splash\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live NOMODESET\" {\n\tlinux /vmlinuz boot=live quiet splash nomodeset\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live NOTHREADIRQS\" {\n\tlinux /vmlinuz boot=live quiet splash nothreadirqs\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live NOTHREADIRQS NOMODESET\" {\n\tlinux /vmlinuz boot=live quiet splash nomodeset nothreadirqs\n\tinitrd /initrd\n}\n\n\"Drauger OS $VERSION Live DEBUG\" {\n\tlinux /vmlinux boot=live debug\n\n\tinitrd /initrd\n}\nEOF" > $BUILD_PREFIX/scratch/grub.cfg
+	touch $BUILD_PREFIX/image/DRAUGER_OS
+	echo -e "\nSetting up for EFI\n"
+	notify-send --app-name="make-iso" "Setting up for EFI"
+	#setup for EFI
+	grub-mkstandalone --format=x86_64-efi --output=$BUILD_PREFIX/scratch/bootx64.efi --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
+	(cd $BUILD_PREFIX/scratch && dd if=/dev/zero of=efiboot.img bs=1M count=10 && mkfs.vfat efiboot.img && mmd -i efiboot.img efi efi/boot && mcopy -i efiboot.img ./bootx64.efi ::efi/boot/ )
+	echo -e "\nSetting up for BIOS\n"
+	notify-send --app-name="make-iso" "Setting up for BIOS"
+	#setup for BIOS
+	grub-mkstandalone --format=i386-pc --output=$BUILD_PREFIX/scratch/core.img --install-modules="linux normal iso9660 biosdisk memdisk search tar ls" --modules="linux normal iso9660 biosdisk search" --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
+	cat /usr/lib/grub/i386-pc/cdboot.img $BUILD_PREFIX/scratch/core.img > $BUILD_PREFIX/scratch/bios.img
+	#make the ISO
+	notify-send --app-name="make-iso" "Name ISO Please"
+	output=$(zenity --entry --text="What would you like to name the new ISO?" --entry-text="Please leave the .iso at the end off")
+	echo -e "\nMaking ISO\n"
+	notify-send --app-name="make-iso" "Making ISO"
+	xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "Drauger OS $VERSION" -eltorito-boot boot/grub/bios.img -no-emul-boot -boot-load-size 4 -boot-info-table --eltorito-catalog boot/grub/boot.cat --grub2-boot-info --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img -eltorito-alt-boot -e EFI/efiboot.img -no-emul-boot -append_partition 2 0xef $BUILD_PREFIX/scratch/efiboot.img -output "$ISO_PREFIX/$output-$ARCH.iso" -graft-points $BUILD_PREFIX/image /boot/grub/bios.img=$BUILD_PREFIX/scratch/bios.img /EFI/efiboot.img=$BUILD_PREFIX/scratch/efiboot.img /boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg && (echo -e "\nISO Completed!\n"; notify-send --app-name="make-iso" "ISO Completed!")
+	rm -rf image scratch
+}
+{ time function_makeiso 2>&1; } 2>$HOME/.time.log
+min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
+sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
+if [ ! -f $HOME/Documents/.running-time.log ]; then
+	echo -e "Drauger OS Development Time Log\nDO NOT MODIFY OR DELETE\nMINUTES\tSECONDS" > $HOME/Documents/.running-time.log
+fi
+echo -e "$min\t$sec" >> $HOME/Documents/.running-time.log
+echo -e "\nTime Logged\n"
