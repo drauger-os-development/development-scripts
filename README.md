@@ -3,7 +3,7 @@ Internal development scripts for working on Drauger OS
 
 
 ---
-`build.sh`
+`shell/build.sh`
 ---
 Build an *.deb package from the files in the current directory. This requires:
  * a filesystem layout following the standard Linux filesystem layout
@@ -17,7 +17,7 @@ A number of different versions of this script are in use. Do not be suprised if 
 
 
 ---
-`make-iso`
+`shell/make-iso`
 ---
 Make an ISO from a given `chroot`. See `debootstrap` on how to make a `chroot` on your system`
 
@@ -34,7 +34,7 @@ In order for this program to work, have your `chroot` in a location with a direc
 
 
 ---
-`build-kernel`
+`shell/build-kernel`
 ---
 Build a kernel for either `amd64` or `arm64` CPU architectures.
 
@@ -68,7 +68,7 @@ Passing "clean" will attempt to clean the local repo. It cannot be used with any
 This program will run a first time config, just like `make-iso` to generate a different config file in the same folder as `make-iso` has it's config file: `~/.config/drauger/`
 
 ---
-`update-package`
+`shell/update-package`
 ---
 Update packages in a `reprepro` local repository.
 
@@ -91,10 +91,75 @@ Update packages in a `reprepro` local repository.
  
  
  ---
- `total-dev-time`
+ `Python/total-dev-time`
  ---
  reads from a file and provides total development time. The file is written to by scripts which are not in this repo yet.
  This program is actually going to be phased out eventually in favor of a more robust solution with not only fewer errors but also more accurate timing.
+ 
+ ---
+ `shell/montior-apt-repo.sh`
+ ---
+ Monitors a selected apt repository. Sends an email to a designated email address if the apt repository is down.
+ 
+ Has first-time set-up. Requires `sendmail` be installed:
+ 
+ Debian-based:
+ `sudo apt install sendmail`
+
+ Arch-based:
+ `sudo pacman -Sy libmilter`
+ 
+ Fedora/RHEL-based:
+ `sudo dnf install sendmail`
+ 
+ ---
+ `JavaScript/convert_to_json.js`
+ ---
+ Convert a locale file from [our Locales repo](https://github.com/drauger-os-development/drauger-locales) from old *.conf file format to JSON.
+ 
+ Requires `nodejs` to be installed:
+ 
+ Debian-based:
+ `sudo apt install nodejs`
+
+ Arch-based:
+ `sudo pacman -Sy nodejs`
+ 
+ Fedora/RHEL-based:
+ `sudo dnf install nodejs`
+ 
+ Usage: `./convert_to_json.js <file-path1> <file-path2> <file-path3>` OR `node convert_to_json.js <file-path1> <file-path2> <file-path2>`
+ 
+ File paths must be written verbosely. With a directory structure like:
+ 
+ ```
+ parent directory
+ |
+ |- convert_to_json.js
+ |- test1.conf
+ |- test2.conf
+ ```
+ To convert both conf files to JSON, one must do, in parent directory:
+ ```
+ ./convert_to_json.js ./test1.conf ./test2.conf
+ ```
+ 
+ Output JSOn files have same file name as original file content was derived from, save for an updated extension (from .conf to .json).
+ 
+ Data is written to the file in the following format:
+ ```json
+ {
+   "data":{
+            "translations":"Translations are stored under the 'data' key",
+            "ordering":"Translations have the same keys and now are in the equivalent JSON format for usage."
+          },
+   "comments":[
+                "Comments are stored under the 'comments' key",
+                "They are stored in an an array, as shown, in the order they appeared in the original file"
+              ]
+ }
+ ```
+ The original file is kept and not modified in case of errors.
  
  
  
