@@ -3,7 +3,7 @@
 
   convert_to_json.js
 
-  Copyright 2020 fbarda <@Peasant#9215 on Discord>
+  Copyright 2020 fbarda <arda.aydin@operationsilkscarf.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
