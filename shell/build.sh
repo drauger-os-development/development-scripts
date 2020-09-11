@@ -17,7 +17,7 @@ mkdir ../"$FOLDER"
 #							     #
 #							     #
 ##############################################################
-## Nothing to compile
+
 ##############################################################
 #							     #
 #							     #
@@ -47,29 +47,8 @@ fi
 if [ -d libx32 ]; then
 	cp -R libx32 ../"$FOLDER"/libx32
 fi
-if [ -d dev ]; then
-	cp -R dev ../"$FOLDER"/dev
-fi
-if [ -d home ]; then
-	cp -R home ../"$FOLDER"/home
-fi
-if [ -d proc ]; then
-	cp -R proc ../"$FOLDER"/proc
-fi
-if [ -d root ]; then
-	cp -R root ../"$FOLDER"/root
-fi
-if [ -d run ]; then
-	cp -R run ../"$FOLDER"/run
-fi
 if [ -d sbin ]; then
 	cp -R sbin ../"$FOLDER"/sbin
-fi
-if [ -d sys ]; then
-	cp -R sys ../"$FOLDER"/sys
-fi
-if [ -d tmp ]; then
-	cp -R tmp ../"$FOLDER"/tmp
 fi
 if [ -d var ]; then
 	cp -R var ../"$FOLDER"/var
