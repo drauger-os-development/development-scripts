@@ -12,19 +12,48 @@ else
 	BUILD_PREFIX=${BUILD_PREFIX:-"$HOME/Downloads"}
 	builtin echo -e "# Make-ISO config\n# Don't end file paths with forward-slashes\n# Chroot locations\nCHROOT_PREFIX=$CHROOT_PREFIX\n# Location to build ISOs\nBUILD_PREFIX=$BUILD_PREFIX\n# Location to store ISOs\nISO_PREFIX=$ISO_PREFIX\n" > $HOME/.config/drauger/make-iso.conf
 fi
+
+clean () {
+	echo "Cleaning Build Prefix . . . "
+	rm -rfv $BUILD_PREFIX
+	echo "Done"
+	mkdir -p $BUILD_PREFIX
+	exit
+}
+
 ARCH="$1"
 CODENAME="$2"
+
 if [ "$ARCH" == "arm" ] || [ "$ARCH" == "arm64" ] || [ "$ARCH" == "ARM" ] || [ "$ARCH" == "ARM64" ]; then
 	ARCH="ARM64"
 elif [ "$ARCH" == "-h" ] || [ "$ARCH" == "--help" ]; then
-	echo -e "\nmake-iso [ARCH] [CODENAME]\n\n\tPass the Arch and the codename to build an ISO for that version of Drauger OS,\n\tprovided the chroot is in the correct location.\n"
+	echo -e "
+make-iso [--help, --clean] [ARCH] [CODENAME]
+		Pass the Arch and the codename to build an ISO for that version of Drauger OS,
+		provided the chroot is in the correct location.
+
+
+	-c, --clean	Clean build directory
+	-h, --help	Print this help dialoge and exit.
+
+"
 	exit 0
+elif [ "$ARCH" == "-c" ] || [ "$ARCH" == "--clean" ]; then
+	clean
 else
 	ARCH="AMD64"
 fi
+
+
 CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
+# This will probably get deleted later
+#if [ "$ARCH" == "--override" ]; then
+#CHROOT_LOCATION="/home/batcastle/Downloads/ISOS/DONE/Drauger_OS-7.5.1-TRASH-AMD64/live/chroot"
+#fi
+
 read -p "Please make sure that you only have one kernel installed. Press enter when you are sure this is the case inside the chroot.
 Furthermore, please ensure that /proc has been unmounted." ans
+
 function_makeiso () {
 	echo "Makeing $ARCH ISO"
 	cd $BUILD_PREFIX
