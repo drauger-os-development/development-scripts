@@ -3,7 +3,7 @@ set -e
 if [ -f $HOME/.config/drauger/make-iso.conf ]; then
 	eval $(grep -v '^#' $HOME/.config/drauger/make-iso.conf)
 else
-echo "Running first-time config..."
+	echo "Running first-time config..."
 	mkdir -p $HOME/.config/drauger
 	CHROOT_PREFIX=$(zenity --entry --text="What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
 	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp.")
