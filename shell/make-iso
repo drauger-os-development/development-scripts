@@ -69,7 +69,7 @@ function_makeiso () {
 	#copy initrd and kernel
 	cp $CHROOT_LOCATION/boot/vmlinuz-* $BUILD_PREFIX/image/vmlinuz
 	cp $CHROOT_LOCATION/boot/initrd.img-* $BUILD_PREFIX/image/initrd || cp $CHROOT_LOCATION/boot/initrd.img $BUILD_PREFIX/image/initrd
-	echo -e "search --set=root --file /DRAUGER_OS\n\ninsmod all_video\n\nset default=\"0\"\nset timeout=30\n\nmenuentry \"Drauger OS $VERSION Live\" {\n\tlinux /vmlinuz boot=live quiet splash\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live NOMODESET\" {\n\tlinux /vmlinuz boot=live quiet splash nomodeset\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live NOTHREADIRQS\" {\n\tlinux /vmlinuz boot=live quiet splash nothreadirqs\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live NOTHREADIRQS NOMODESET\" {\n\tlinux /vmlinuz boot=live quiet splash nomodeset nothreadirqs\n\tinitrd /initrd\n}\n\n\"Drauger OS $VERSION Live DEBUG\" {\n\tlinux /vmlinux boot=live debug\n\n\tinitrd /initrd\n}\nEOF" > $BUILD_PREFIX/scratch/grub.cfg
+	echo -e "search --set=root --file /DRAUGER_OS\n\ninsmod all_video\n\nset default=\"0\"\nset timeout=30\n\nmenuentry \"Drauger OS $VERSION Live\" {\n\tlinux /vmlinuz boot=live quiet splash\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live Safe Graphics\" {\n\tlinux /vmlinuz boot=live quiet splash nomodeset\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live DEBUG\" {\n\tlinux /vmlinuz boot=live debug\n\tinitrd /initrd\n}\nEOF" > $BUILD_PREFIX/scratch/grub.cfg
 	touch $BUILD_PREFIX/image/DRAUGER_OS
 	echo -e "\nSetting up for EFI\n"
 	notify-send --app-name="make-iso" "Setting up for EFI"
