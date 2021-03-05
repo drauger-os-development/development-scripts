@@ -88,7 +88,9 @@ function_makeiso () {
 	notify-send --app-name="make-iso" "Making ISO"
 	xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid "Drauger OS $VERSION" -eltorito-boot boot/grub/bios.img -no-emul-boot -boot-load-size 4 -boot-info-table --eltorito-catalog boot/grub/boot.cat --grub2-boot-info --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img -eltorito-alt-boot -e EFI/efiboot.img -no-emul-boot -append_partition 2 0xef $BUILD_PREFIX/scratch/efiboot.img -output "$ISO_PREFIX/$output-$ARCH.iso" -graft-points $BUILD_PREFIX/image /boot/grub/bios.img=$BUILD_PREFIX/scratch/bios.img /EFI/efiboot.img=$BUILD_PREFIX/scratch/efiboot.img /boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg && (echo -e "\nISO Completed!\n"; notify-send --app-name="make-iso" "ISO Completed!")
 	rm -rf image scratch
+	chmod 644 "$ISO_PREFIX/$output-$ARCH.iso"
 }
+
 { time function_makeiso 2>&1; } 2>$HOME/.time.log
 min=$(cat $HOME/.time.log | grep 'real' | sed 's/real\t//g' | sed 's/m.*//g')
 sec=$(cat $HOME/.time.log | grep 'real' | sed 's/.*m//g' | sed 's/s//g')
