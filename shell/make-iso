@@ -13,6 +13,42 @@ else
 	builtin echo -e "# Make-ISO config\n# Don't end file paths with forward-slashes\n# Chroot locations\nCHROOT_PREFIX=$CHROOT_PREFIX\n# Location to build ISOs\nBUILD_PREFIX=$BUILD_PREFIX\n# Location to store ISOs\nISO_PREFIX=$ISO_PREFIX\n" > $HOME/.config/drauger/make-iso.conf
 fi
 
+needed=""
+if ! $(which mksquashfs 1>/dev/null 2>/dev/null); then
+	needed="squashfs-tools"
+fi
+if ! $(which grub-mkstandalone 1>/dev/null 2>/dev/null); then
+	needed="$needed grub-common"
+fi
+if ! $(which xorriso 1>/dev/null 2>/dev/null); then
+	needed="$needed xorriso"
+fi
+if ! $(which zenity 1>/dev/null 2>/dev/null); then
+	needed="$needed zenity"
+fi
+if ! $(which notify-send 1>/dev/null 2>/dev/null); then
+	needed="$needed libnotify-bin"
+fi
+if ! $(which mmd 1>/dev/null 2>/dev/null); then
+	needed="$needed mtools"
+fi
+if ! $(which mkfs.vfat 1>/dev/null 2>/dev/null); then
+	needed="$needed dosfstool"
+fi
+if [ ! -f /usr/lib/grub/x86_64-efi/modinfo.sh ]; then
+	needed="$needed grub-efi-amd64-bin"
+fi
+if [ ! -f /usr/lib/grub/i386-pc/modinfo.sh ]; then
+	needed="$needed grub-pc-bin"
+fi
+
+if [[ "$needed" != "" ]]; then
+	echo "Error: Missing depedencies. Please install the following packages to use this script." 1>&2
+	echo "Depedencies:" 1>&2
+	echo "$needed" 1>&2
+	exit 2
+fi
+
 clean () {
 	echo "Cleaning Build Prefix . . . "
 	rm -rfv $BUILD_PREFIX
@@ -69,7 +105,29 @@ function_makeiso () {
 	#copy initrd and kernel
 	cp $CHROOT_LOCATION/boot/vmlinuz-* $BUILD_PREFIX/image/vmlinuz
 	cp $CHROOT_LOCATION/boot/initrd.img-* $BUILD_PREFIX/image/initrd || cp $CHROOT_LOCATION/boot/initrd.img $BUILD_PREFIX/image/initrd
-	echo -e "search --set=root --file /DRAUGER_OS\n\ninsmod all_video\n\nset default=\"0\"\nset timeout=30\n\nmenuentry \"Drauger OS $VERSION Live\" {\n\tlinux /vmlinuz boot=live quiet splash\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live Safe Graphics\" {\n\tlinux /vmlinuz boot=live quiet splash nomodeset\n\tinitrd /initrd\n}\n\nmenuentry \"Drauger OS $VERSION Live DEBUG\" {\n\tlinux /vmlinuz boot=live debug\n\tinitrd /initrd\n}\nEOF" > $BUILD_PREFIX/scratch/grub.cfg
+	echo -e "search --set=root --file /DRAUGER_OS
+
+insmod all_video
+
+set default=\"0\"\nset timeout=30
+
+menuentry \"Install Drauger OS $VERSION\" {
+	linux /vmlinuz boot=live quiet splash nomodeset system-installer
+	initrd /initrd
+}
+
+menuentry \"Try Drauger OS $VERSION\" {
+	linux /vmlinuz boot=live quiet splash
+	initrd /initrd
+}
+
+menuentry \"Try Drauger OS $VERSION In Safe Graphics Mode\" {
+	linux /vmlinuz boot=live quiet splash nomodeset
+	initrd /initrd
+}
+
+
+EOF" > $BUILD_PREFIX/scratch/grub.cfg
 	touch $BUILD_PREFIX/image/DRAUGER_OS
 	echo -e "\nSetting up for EFI\n"
 	notify-send --app-name="make-iso" "Setting up for EFI"
