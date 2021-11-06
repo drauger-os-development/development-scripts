@@ -6,7 +6,7 @@ else
 	echo "Running first-time config..."
 	mkdir -p $HOME/.config/drauger
 	CHROOT_PREFIX=$(zenity --entry --text="What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
-	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp.")
+	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp/build.")
 	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp/build"}
 	ISO_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be stored? Default is ~/Downloads.")
 	ISO_PREFIX=${ISO_PREFIX:-"$HOME/Downloads"}
