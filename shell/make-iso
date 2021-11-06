@@ -7,9 +7,9 @@ else
 	mkdir -p $HOME/.config/drauger
 	CHROOT_PREFIX=$(zenity --entry --text="What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
 	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp.")
-	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp"}
+	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp/build"}
 	ISO_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be stored? Default is ~/Downloads.")
-	BUILD_PREFIX=${BUILD_PREFIX:-"$HOME/Downloads"}
+	ISO_PREFIX=${ISO_PREFIX:-"$HOME/Downloads"}
 	builtin echo -e "# Make-ISO config\n# Don't end file paths with forward-slashes\n# Chroot locations\nCHROOT_PREFIX=$CHROOT_PREFIX\n# Location to build ISOs\nBUILD_PREFIX=$BUILD_PREFIX\n# Location to store ISOs\nISO_PREFIX=$ISO_PREFIX\n" > $HOME/.config/drauger/make-iso.conf
 fi
 
@@ -91,7 +91,10 @@ read -p "Please make sure that you only have one kernel installed. Press enter w
 Furthermore, please ensure that /proc has been unmounted." ans
 
 function_makeiso () {
-	echo "Makeing $ARCH ISO"
+	echo "Making $ARCH ISO"
+	if [ ! -d "$BUILD_PREFIX" ]; then
+		mkdir -p "$BUILD_PREFIX"
+	fi
 	cd $BUILD_PREFIX
 	VERSION=$(cat $CHROOT_LOCATION/etc/lsb-release | grep 'DISTRIB_RELEASE=' | sed 's/DISTRIB_RELEASE=//g')
 	#clean up the chroot
