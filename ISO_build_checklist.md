@@ -1,3 +1,7 @@
+Note: Have you run this checklist before? If you want to start off with the files created during the last runthrough, skip to step #8
+
+--------------------
+
 1) Download the most recent ISO from DraugerOS.org
 2) Clone the [development-scripts](https://github.com/drauger-os-development/development-scripts) repo
 ```bash
