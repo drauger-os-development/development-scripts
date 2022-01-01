@@ -7,7 +7,7 @@ Note: Have you run this checklist before? If you want to start off with the file
 ```bash
 git clone "https://github.com/drauger-os-development/development-scripts"
 ```
-3) Create a working directory.  In that directory, create the CHROOT and AMD64 folders.
+3) Create a working directory.  In that directory, create the CHROOT folder. Create the AMD64 folder inside the CHROOT folder.
 ```bash
 mkdir -p CHROOT/AMD64
 ```
@@ -45,13 +45,31 @@ apt clean
 apt autopurge
 exit
 ```
-11) Run make-iso command from directory development-scripts was cloned into
+
+### version 7.5.1 instructions
+11) Run make-iso command from the shell directory inside development-scripts
 ```bash
 # this script only needs to be run once, and then it saves a config file in ~/.config/drauger
 ./make-iso
-# Install any required dependencies highlighted during script execution
+# The script may have an error listing some missing packages.  Install any required dependencies listed, then move onto next step.
 ```
+
 12) Run make-iso command a second time with arguments
 ```bash
 ./make-iso amd64 zombi
 ```
+
+### version 7.6 instructions
+11) Run make-iso command from the shell directory inside development-scripts
+```bash
+# this script only needs to be run once, and then it saves a config file in ~/.config/drauger
+./make-iso-repo
+# The script may have an error listing some missing packages.  Install any required dependencies listed, then move onto next step.
+```
+
+12) Run make-iso command a second time with arguments
+```bash
+./make-iso-repo amd64 zombi
+```
+
+
