@@ -10,7 +10,18 @@ else
 	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp/build"}
 	ISO_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be stored? Default is ~/Downloads.")
 	ISO_PREFIX=${ISO_PREFIX:-"$HOME/Downloads"}
-	builtin echo -e "# Make-ISO config\n# Don't end file paths with forward-slashes\n# Chroot locations\nCHROOT_PREFIX=$CHROOT_PREFIX\n# Location to build ISOs\nBUILD_PREFIX=$BUILD_PREFIX\n# Location to store ISOs\nISO_PREFIX=$ISO_PREFIX\n" > $HOME/.config/drauger/make-iso.conf
+	KERNEL=$(zenity --entry --text="What kernel would you like to use? Default is linux-drauger.")
+	KERNEL=${KERNEL:-"linux-drauger"}
+	builtin echo -e "# Make-ISO config
+# Don't end file paths with forward-slashes
+# Chroot location
+CHROOT_PREFIX=$CHROOT_PREFIX
+# Location to build ISOs
+BUILD_PREFIX=$BUILD_PREFIX
+# Location to store ISOs
+ISO_PREFIX=$ISO_PREFIX
+# Kernel to use
+KERNEL=$KERNEL" > $HOME/.config/drauger/make-iso.conf
 fi
 
 needed=""
@@ -142,6 +153,17 @@ EOF" > $BUILD_PREFIX/scratch/grub.cfg
 	#setup for BIOS
 	grub-mkstandalone --format=i386-pc --output=$BUILD_PREFIX/scratch/core.img --install-modules="linux normal iso9660 biosdisk memdisk search tar ls" --modules="linux normal iso9660 biosdisk search" --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
 	cat /usr/lib/grub/i386-pc/cdboot.img $BUILD_PREFIX/scratch/core.img > $BUILD_PREFIX/scratch/bios.img
+	# MAKE DEB REPO
+	echo -e "\nSetting up local deb repo\n"
+	notify-send --app-name="make-iso" "Setting up local deb repo"
+	mkdir -p $BUILD_PREFIX/image/repo
+	deps=$(apt-cache depends "$KERNEL" | grep 'Depends:' | awk '{print $2}')
+	deps="$deps $KERNEL systemd-boot-manager python3-distutils python3-lib2to3"
+	base="$PWD"
+	cd $BUILD_PREFIX/image/repo
+	apt-get download $deps
+	cd "$base"
+	# DONE MAKING REPO
 	#make the ISO
 	notify-send --app-name="make-iso" "Name ISO Please"
 	output=$(zenity --entry --text="What would you like to name the new ISO?" --entry-text="Please leave the .iso at the end off")
