@@ -158,17 +158,17 @@ editor 1
 	echo "title  Try Drauger_OS $VERSION
 linux   /vmlinuz
 initrd  /initrd
-options boot=live:CDLABEL='Drauger OS $VERSION' quiet splash
+options boot=live quiet splash
 " > $BUILD_PREFIX/scratch/EFI/loader/entries/Drauger_OS.conf
 	echo "title  Try Drauger_OS $VERSION in Safe Graphics Mode
 linux   /vmlinuz
 initrd  /initrd
-options boot=live:CDLABEL='Drauger OS $VERSION' quiet splash nomodeset
+options boot=live quiet splash nomodeset
 " > $BUILD_PREFIX/scratch/EFI/loader/entries/Drauger_OS_nomodeset.conf
 	echo "title  Install Drauger_OS $VERSION
 linux   /vmlinuz
 initrd  /initrd
-options boot=live:CDLABEL='Drauger OS $VERSION' quiet splash system-installer
+options boot=live quiet splash system-installer
 " > $BUILD_PREFIX/scratch/EFI/loader/entries/Drauger_OS_install.conf
 	cd $BUILD_PREFIX/scratch
 	dd if=/dev/zero of=efi.img bs=1M count=112
