@@ -93,10 +93,6 @@ fi
 
 
 CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
-# This will probably get deleted later
-#if [ "$ARCH" == "--override" ]; then
-#CHROOT_LOCATION="/home/batcastle/Downloads/ISOS/DONE/Drauger_OS-7.5.1-TRASH-AMD64/live/chroot"
-#fi
 
 read -p "Please make sure that you only have one kernel installed. Press enter when you are sure this is the case inside the chroot.
 Furthermore, please ensure that /proc has been unmounted." ans
