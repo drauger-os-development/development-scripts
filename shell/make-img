@@ -1,0 +1,189 @@
+#!/bin/bash
+# -*- coding: utf-8 -*-
+#
+#  make-img
+#
+#  Copyright 2022 Thomas Castleman <contact@draugeros.org>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#
+# setup
+echo "Setting up..."
+set -e
+
+needed=""
+if ! $(which parted 1>/dev/null 2>/dev/null); then
+	needed="parted"
+fi
+if ! $(which rsync 1>/dev/null 2>/dev/null); then
+	needed="$needed rsync"
+fi
+if ! $(which zstd 1>/dev/null 2>/dev/null); then
+	needed="$needed zstd"
+fi
+if ! $(which zenity 1>/dev/null 2>/dev/null) && [ ! -f $HOME/.config/drauger/make-iso.conf ]; then
+	needed="$needed zenity"
+fi
+if ! $(which notify-send 1>/dev/null 2>/dev/null); then
+	needed="$needed libnotify-bin"
+fi
+if ! $(which mkfs.btrfs 1>/dev/null 2>/dev/null); then
+	needed="$needed btrfs-progs"
+fi
+if ! $(which mkfs.vfat 1>/dev/null 2>/dev/null); then
+	needed="$needed dosfstool"
+fi
+# if [ ! -f /usr/lib/grub/x86_64-efi/modinfo.sh ]; then
+	# needed="$needed grub-efi-amd64-bin"
+# fi
+# if [ ! -f /usr/lib/grub/i386-pc/modinfo.sh ]; then
+	# needed="$needed grub-pc-bin"
+# fi
+
+if [[ "$needed" != "" ]]; then
+	echo "Error: Missing depedencies. Please install the following packages to use this script." 1>&2
+	echo "Depedencies:" 1>&2
+	echo "$needed" 1>&2
+	exit 2
+fi
+
+if [ -f $HOME/.config/drauger/make-iso.conf ]; then
+	eval $(grep -v '^#' $HOME/.config/drauger/make-iso.conf)
+else
+	echo "Running first-time config..."
+	mkdir -p $HOME/.config/drauger
+	CHROOT_PREFIX=$(zenity --entry --text="What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
+	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp/build.")
+	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp/build"}
+	ISO_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be stored? Default is ~/Downloads.")
+	ISO_PREFIX=${ISO_PREFIX:-"$HOME/Downloads"}
+	KERNEL=$(zenity --entry --text="What kernel would you like to use? Default is linux-drauger.")
+	KERNEL=${KERNEL:-"linux-drauger"}
+	builtin echo -e "# Make-ISO config
+# Don't end file paths with forward-slashes
+# Chroot location
+CHROOT_PREFIX=$CHROOT_PREFIX
+# Location to build ISOs
+BUILD_PREFIX=$BUILD_PREFIX
+# Location to store ISOs
+ISO_PREFIX=$ISO_PREFIX
+# Kernel to use
+KERNEL=$KERNEL" > $HOME/.config/drauger/make-iso.conf
+fi
+
+ARCH="$1"
+if [ "$ARCH" == "amd64" ] || [ "$ARCH" == "AMD64" ] || [ "$ARCH" == "AMD" ] || [ "$ARCH" == "amd" ] || [ "$ARCH" == "x86_64" ] || [ "$ARCH" == "x86" ] || [ "$ARCH" == "x64" ]; then
+	ARCH="AMD64"
+elif [ "$ARCH" == "ARM" ] || [ "$ARCH" == "arm" ] || [ "$ARCH" == "ARM64" ] || [ "$ARCH" == "arm64" ]; then
+	ARCH="ARM64"
+fi
+CODENAME="$2"
+CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
+VERSION=$(cat $CHROOT_LOCATION/etc/lsb-release | grep 'DISTRIB_RELEASE=' | sed 's/DISTRIB_RELEASE=//g')
+if [ "$3" == "--alpha" ]; then
+	IMG="Drauger_OS-$VERSION-ALPHA$4-$ARCH.img"
+elif  [ "$3" == "--beta" ]; then
+	IMG="Drauger_OS-$VERSION-BETA$4-$ARCH.img"
+elif  [ "$3" == "--dev" ]; then
+	IMG="Drauger_OS-$VERSION-DEV-$ARCH.img"
+else
+	IMG="Drauger_OS-$VERSION-$ARCH.img"
+fi
+read -p "Please make sure that you only have one kernel installed. Press enter when you are sure this is the case inside the chroot.
+Furthermore, please ensure that /proc has been unmounted." ans
+
+# obtain root
+echo "Obtaining Root Access..."
+notify-send "Obtaining Root Access..."
+sudo echo ""
+
+#clean up the chroot
+sudo rm -rf $CHROOT_LOCATION/var/crash/* $CHROOT_LOCATION/root/* $CHROOT_LOCATION/home/live/.bash_history $CHROOT_LOCATION/var/log/*
+
+# get size of CHROOT in MB
+size=$(echo "$(sudo du -s $CHROOT_LOCATION | awk '{print $1}') / 1024" | bc)
+
+# add 615MB of buffer space, 512MB for boot partition, and 1MB for partition table
+# Total: 615 + 512 + 1 = 1128 MB
+size=$(echo "$size + 1128" | bc)
+
+# convert to blocks for dd
+blocks=$(echo "($size * 1024) / 4" | bc)
+
+
+
+# make IMG file
+echo "Generating empty IMG file..."
+notify-send "Generating empty IMG file..."
+mkdir -p $BUILD_PREFIX
+dd if=/dev/zero of="$BUILD_PREFIX/$IMG" count=$blocks bs=4k status=progress
+
+# make partition table
+echo "Making Partition Table..."
+notify-send "Making Partition Table..."
+parted --script "$BUILD_PREFIX/$IMG" mktable gpt
+
+# partition
+# first 1MB left for partition table
+echo "Partitioning..."
+notify-send "Partitioning..."
+parted --script "$BUILD_PREFIX/$IMG" mkpart primary fat32 1MB 513MB
+parted --script "$BUILD_PREFIX/$IMG" mkpart primary btrfs 513MB 100%
+
+# make loop device
+echo "Setting up loop device..."
+notify-send "Setting up loop device..."
+sudo losetup -P -f "$BUILD_PREFIX/$IMG"
+
+# figure out which loop device is being used (thanks a lot snaps -_-)
+device=$(lsblk --output path,mountpoint | grep "loop" | grep -v snap | head -n1 | awk '{print $1}')
+
+# make file systems
+echo "Formatting partitions..."
+notify-send "Formatting partitions..."
+sudo mkfs.vfat -F32 "$device"p1
+sudo mkfs.btrfs "$device"p2
+
+# mount
+sudo mount "$device"p2 /mnt
+sudo mkdir /mnt/boot
+sudo mount "$device"p1 /mnt/boot
+
+# copy the entire CHROOT over
+echo "Copying CHROOT..."
+notify-send "Copying CHROOT..."
+# sudo cp -av "$CHROOT_LOCATION"/* /mnt/
+sudo rsync -avAXH "$CHROOT_LOCATION"/* /mnt/
+
+echo "Cleaning up..."
+notify-send "Cleaning up..."
+# unmount
+sudo umount /mnt/boot
+sudo umount /mnt
+
+# detach loop device
+sudo losetup -d "$device"
+
+# compress IMG file
+echo "Compressing..."
+notify-send "Compressing..."
+zstd -z6 --threads=$(echo "$(nproc) / 2" | bc) "$BUILD_PREFIX/$IMG" -o "$ISO_PREFIX/$IMG".zstd
+
+# remove raw IMG file
+echo "Deleting raw IMG file..."
+notify-send "Deleting raw IMG file..."
+rm -fv "$BUILD_PREFIX/$IMG"
