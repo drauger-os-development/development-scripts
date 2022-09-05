@@ -92,6 +92,7 @@ elif [ "$ARCH" == "ARM" ] || [ "$ARCH" == "arm" ] || [ "$ARCH" == "ARM64" ] || [
 	ARCH="ARM64"
 fi
 CODENAME="$2"
+DEVICE="$3"
 CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
 VERSION=$(cat $CHROOT_LOCATION/etc/lsb-release | grep 'DISTRIB_RELEASE=' | sed 's/DISTRIB_RELEASE=//g')
 if [ "$3" == "--alpha" ]; then
@@ -132,17 +133,52 @@ notify-send "Generating empty IMG file..."
 mkdir -p $BUILD_PREFIX
 dd if=/dev/zero of="$BUILD_PREFIX/$IMG" count=$blocks bs=4k status=progress
 
-# make partition table
-echo "Making Partition Table..."
-notify-send "Making Partition Table..."
-parted --script "$BUILD_PREFIX/$IMG" mktable gpt
+# get bootloader
+echo "Getting Bootloader..."
+notify-send "Getting Bootloader..."
+url=$(curl https://api.github.com/repos/Tow-Boot/Tow-Boot/releases/latest | grep "browser_download_url" | sed 's/"//g' | grep -i "$DEVICE" | awk '{print $2}')
+# check to ensure we have 1 URL
+count=$(echo "$url" | wc -l)
+if [[ "$count" > 1 ]]; then
+	notify-send "Need human intervention!"
+	echo -e "\n\n"
+	echo "It looks like more than one possible devices match the device string provided."
+	echo "Which one would you like to use?"
+	echo "$url" | sed 's:/: :g' | awk '{print $8}' | sed 's/-/ /g' | awk '{printf("%s %s\n", $1, $2)}' | nl
+	read -p "Enter corrosponding number [1-$count]: " choice
+	echo -e "\n\n"
+	url=$(echo "$url" | head -n$choice | tail -n1)
+fi
+wget "$url"
+file=$(echo "$url" | sed 's:/: :g' | awk '{print $8}')
+unxz "$file"
+file="${file::-3}"
+tar --extract -f "$file"
+rm "$file"
+file="${file::-4}"
+mv "$file"/shared.disk-image.img tow-boot.img
+rm -rfv "$file"
+
+# make partition table and write bootloader
+echo "Making Partition Table and Writing Bootloader..."
+notify-send "Making Partition Table and Writing Bootloader..."
+dd if=tow-boot.img of="$BUILD_PREFIX/$IMG" status=progress oflag=notrunc
+sgdisk --move-second-header "$BUILD_PREFIX/$IMG"
+partprobe "$BUILD_PREFIX/$IMG"
 
 # partition
 # first 1MB left for partition table
 echo "Partitioning..."
 notify-send "Partitioning..."
-parted --script "$BUILD_PREFIX/$IMG" mkpart primary fat32 1MB 513MB
-parted --script "$BUILD_PREFIX/$IMG" mkpart primary btrfs 513MB 100%
+start=$(parted --script "$BUILD_PREFIX/$IMG" unit s print | tail -n2 | head -n1 | awk '{print $3}')
+# adjust start location to ensure optimal performance
+start=${start::-1}
+offset=$(echo "$start % 2048" | bc)
+if [[ "$offset" != "0" ]]; then
+	offset=$(echo "2048 - $offset" | bc)
+	start=$(echo "$offset + $start" | bc)
+fi
+parted --script "$BUILD_PREFIX/$IMG" mkpart primary btrfs "$start"s 100%
 
 # make loop device
 echo "Setting up loop device..."
@@ -155,13 +191,10 @@ device=$(lsblk --output path,mountpoint | grep "loop" | grep -v snap | head -n1 
 # make file systems
 echo "Formatting partitions..."
 notify-send "Formatting partitions..."
-sudo mkfs.vfat -F32 "$device"p1
 sudo mkfs.btrfs "$device"p2
 
 # mount
 sudo mount "$device"p2 /mnt
-sudo mkdir /mnt/boot
-sudo mount "$device"p1 /mnt/boot
 
 # copy the entire CHROOT over
 echo "Copying CHROOT..."
@@ -172,7 +205,6 @@ sudo rsync -avAXH "$CHROOT_LOCATION"/* /mnt/
 echo "Cleaning up..."
 notify-send "Cleaning up..."
 # unmount
-sudo umount /mnt/boot
 sudo umount /mnt
 
 # detach loop device
