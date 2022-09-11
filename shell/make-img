@@ -237,9 +237,9 @@ notify-send "Copying CHROOT..."
 sudo rsync -aAXH --info=progress2 "$CHROOT_LOCATION"/* /mnt/
 
 # Install kernel
-# sudo arch-chroot /mnt apt update
-# sudo arch-chroot /mnt apt install -y "$KERNEL"
-read -p "Install Kernel Now..." choice
+sudo arch-chroot /mnt apt update
+sudo arch-chroot /mnt apt install -y "$KERNEL"
+# read -p "Install Kernel Now..." choice
 
 echo "Cleaning up..."
 notify-send "Cleaning up..."
