@@ -35,7 +35,7 @@ fi
 if ! $(which zstd 1>/dev/null 2>/dev/null); then
 	needed="$needed zstd"
 fi
-if ! $(which zenity 1>/dev/null 2>/dev/null) && [ ! -f $HOME/.config/drauger/make-iso.conf ]; then
+if ! $(which zenity 1>/dev/null 2>/dev/null) && [ ! -f $HOME/.config/drauger/make-img.conf ]; then
 	needed="$needed zenity"
 fi
 if ! $(which notify-send 1>/dev/null 2>/dev/null); then
@@ -61,14 +61,14 @@ if [[ "$needed" != "" ]]; then
 	exit 2
 fi
 
-if [ -f $HOME/.config/drauger/make-iso.conf ]; then
-	eval $(grep -v '^#' $HOME/.config/drauger/make-iso.conf)
+if [ -f $HOME/.config/drauger/make-img.conf ]; then
+	eval $(grep -v '^#' $HOME/.config/drauger/make-img.conf)
 else
 	echo "Running first-time config..."
 	mkdir -p $HOME/.config/drauger
 	CHROOT_PREFIX=$(zenity --entry --text="What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
-	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp/build.")
-	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp/build"}
+	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is ~/.BUILD.")
+	BUILD_PREFIX=${BUILD_PREFIX:-"$HOME/.BUILD"}
 	ISO_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be stored? Default is ~/Downloads.")
 	ISO_PREFIX=${ISO_PREFIX:-"$HOME/Downloads"}
 	KERNEL=$(zenity --entry --text="What kernel would you like to use? Default is linux-drauger.")
@@ -82,7 +82,7 @@ BUILD_PREFIX=$BUILD_PREFIX
 # Location to store ISOs
 ISO_PREFIX=$ISO_PREFIX
 # Kernel to use
-KERNEL=$KERNEL" > $HOME/.config/drauger/make-iso.conf
+KERNEL=$KERNEL" > $HOME/.config/drauger/make-img.conf
 fi
 
 ARCH="$1"
@@ -93,13 +93,17 @@ elif [ "$ARCH" == "ARM" ] || [ "$ARCH" == "arm" ] || [ "$ARCH" == "ARM64" ] || [
 fi
 CODENAME="$2"
 DEVICE="$3"
+# $DEVICE could be one of 2 things. Make sure it isn't being misunderstood
+if [ "${DEVICE::2}" == "--" ]; then
+	DEVICE=""
+fi
 CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
 VERSION=$(cat $CHROOT_LOCATION/etc/lsb-release | grep 'DISTRIB_RELEASE=' | sed 's/DISTRIB_RELEASE=//g')
-if [ "$3" == "--alpha" ]; then
+if [ "$3" == "--alpha" ] || [ "$4" == "--alpha" ]; then
 	IMG="Drauger_OS-$VERSION-ALPHA$4-$ARCH.img"
-elif  [ "$3" == "--beta" ]; then
+elif  [ "$3" == "--beta" ] || [ "$4" == "--beta" ]; then
 	IMG="Drauger_OS-$VERSION-BETA$4-$ARCH.img"
-elif  [ "$3" == "--dev" ]; then
+elif  [ "$3" == "--dev" ] || [ "$4" == "--dev" ]; then
 	IMG="Drauger_OS-$VERSION-DEV-$ARCH.img"
 else
 	IMG="Drauger_OS-$VERSION-$ARCH.img"
@@ -113,25 +117,10 @@ notify-send "Obtaining Root Access..."
 sudo echo ""
 
 #clean up the chroot
-sudo rm -rf $CHROOT_LOCATION/var/crash/* $CHROOT_LOCATION/root/* $CHROOT_LOCATION/home/live/.bash_history $CHROOT_LOCATION/var/log/*
+sudo rm -rfv $CHROOT_LOCATION/var/crash/* $CHROOT_LOCATION/root/* $CHROOT_LOCATION/home/live/.bash_history $CHROOT_LOCATION/var/log/*
 
 # get size of CHROOT in MB
 size=$(echo "$(sudo du -s $CHROOT_LOCATION | awk '{print $1}') / 1024" | bc)
-
-# add 615MB of buffer space, 512MB for boot partition, and 1MB for partition table
-# Total: 615 + 512 + 1 = 1128 MB
-size=$(echo "$size + 1128" | bc)
-
-# convert to blocks for dd
-blocks=$(echo "($size * 1024) / 4" | bc)
-
-
-
-# make IMG file
-echo "Generating empty IMG file..."
-notify-send "Generating empty IMG file..."
-mkdir -p $BUILD_PREFIX
-dd if=/dev/zero of="$BUILD_PREFIX/$IMG" count=$blocks bs=4k status=progress
 
 # get bootloader
 echo "Getting Bootloader..."
@@ -151,18 +140,36 @@ if [[ "$count" > 1 ]]; then
 fi
 wget "$url"
 file=$(echo "$url" | sed 's:/: :g' | awk '{print $8}')
-unxz "$file"
+unxz --verbose "$file"
 file="${file::-3}"
-tar --extract -f "$file"
+tar --extract --verbose -f "$file"
 rm "$file"
 file="${file::-4}"
-mv "$file"/shared.disk-image.img tow-boot.img
+mv "$file"/shared.disk-image.img "$BUILD_PREFIX/tow-boot.img"
 rm -rfv "$file"
+
+
+# add 4096MiB of buffer space, 512MiB for boot partition, and 2MiB for partition table
+# plus however large the firmware is
+# Total: 4096 + 512 + 2 = 4610 MiB
+tb_size=$(echo "$(sudo du -s $BUILD_PREFIX/tow-boot.img | awk '{print $1}') / 1024" | bc)
+size=$(echo "$size + 4610 + $tb_size" | bc)
+
+# convert to blocks for dd
+blocks=$(echo "($size * 1024) / 4" | bc)
+
+
+# make IMG file
+echo "Generating empty IMG file..."
+notify-send "Generating empty IMG file..."
+mkdir -p $BUILD_PREFIX
+dd if=/dev/zero of="$BUILD_PREFIX/$IMG" count=$blocks bs=4k status=progress
 
 # make partition table and write bootloader
 echo "Making Partition Table and Writing Bootloader..."
 notify-send "Making Partition Table and Writing Bootloader..."
-dd if=tow-boot.img of="$BUILD_PREFIX/$IMG" status=progress oflag=notrunc
+dd if="$BUILD_PREFIX/tow-boot.img" of="$BUILD_PREFIX/$IMG" status=progress conv=notrunc
+rm -v "$BUILD_PREFIX/tow-boot.img"
 sgdisk --move-second-header "$BUILD_PREFIX/$IMG"
 partprobe "$BUILD_PREFIX/$IMG"
 
@@ -178,42 +185,106 @@ if [[ "$offset" != "0" ]]; then
 	offset=$(echo "2048 - $offset" | bc)
 	start=$(echo "$offset + $start" | bc)
 fi
-parted --script "$BUILD_PREFIX/$IMG" mkpart primary btrfs "$start"s 100%
+sector_size=$(parted --script "$BUILD_PREFIX/$IMG" unit b print | head -n3 | tail -n1| awk '{print $4}' | sed 's:/: :g' | awk '{print $1}')
+root_start=$(parted --script "$BUILD_PREFIX/$IMG" unit mb print | tail -n2 | head -n1 | awk '{print $3}')
+sector_size=${sector_size::-1}
+root_size=${root_start::-2}
+# boot part needs to be 512 MiB, 512 MiB is 536870912 B
+root_start=$(echo "$root_start + 536870912" | bc)
+# convert to sectors
+root_start=$(echo "$root_start / $sector_size" | bc)
+offset=$(echo "$start % 2048" | bc)
+if [[ "$root_start" != "0" ]]; then
+	offset=$(echo "2048 - $offset" | bc)
+	root_start=$(echo "$offset + $root_start" | bc)
+fi
+size=$(echo "$size - 1" | bc)
+parted --script -a optimal "$BUILD_PREFIX/$IMG" mkpart primary fat32 "$start"s "$root_start"s
+parted --script "$BUILD_PREFIX/$IMG" name 2 "D_OS-BOOT"
+parted --script "$BUILD_PREFIX/$IMG" set 2 "legacy_boot" "on"
+parted --script "$BUILD_PREFIX/$IMG" set 2 "esp" "on"
+parted --script "$BUILD_PREFIX/$IMG" set 2 "boot" "on"
+# addd 2048 to root_start to keep it optimized for best performance
+root_start=$(echo "$root_start + 2048" | bc)
+parted --script -a optimal "$BUILD_PREFIX/$IMG" mkpart primary btrfs "$root_start"s "$size"MB
+parted --script "$BUILD_PREFIX/$IMG" name 3 "D_OS-ROOT"
+
+
 
 # make loop device
 echo "Setting up loop device..."
 notify-send "Setting up loop device..."
-sudo losetup -P -f "$BUILD_PREFIX/$IMG"
+device=$(sudo losetup --show -P -f "$BUILD_PREFIX/$IMG")
 
 # figure out which loop device is being used (thanks a lot snaps -_-)
-device=$(lsblk --output path,mountpoint | grep "loop" | grep -v snap | head -n1 | awk '{print $1}')
+# device=$(lsblk --output path,mountpoint | grep "loop" | grep -v snap | head -n1 | awk '{print $1}')
 
 # make file systems
 echo "Formatting partitions..."
 notify-send "Formatting partitions..."
-sudo mkfs.btrfs "$device"p2
+sudo mkfs.fat -F32 "$device"p2
+sudo mkfs.btrfs "$device"p3
 
 # mount
-sudo mount "$device"p2 /mnt
+sudo mount "$device"p3 /mnt
+sudo mkdir /mnt/boot
+sudo mount "$device"p2 /mnt/boot
 
 # copy the entire CHROOT over
 echo "Copying CHROOT..."
 notify-send "Copying CHROOT..."
 # sudo cp -av "$CHROOT_LOCATION"/* /mnt/
-sudo rsync -avAXH "$CHROOT_LOCATION"/* /mnt/
+sudo rsync -aAXH --info=progress2 "$CHROOT_LOCATION"/* /mnt/
+
+# Install kernel
+# sudo arch-chroot /mnt apt update
+# sudo arch-chroot /mnt apt install -y "$KERNEL"
+read -p "Install Kernel Now..." choice
 
 echo "Cleaning up..."
 notify-send "Cleaning up..."
+# empty excess data out of IMG
+sudo arch-chroot /mnt apt autopurge
+sudo arch-chroot /mnt apt clean
+
+# unmount
+sudo umount /mnt/boot
+
+# get total final root image partition used
+size=$(echo "$(sudo du -s /mnt/ | awk '{print $1}') / 1024" | bc)
+boot_size=$(echo "$(sudo du -s /mnt/boot | awk '{print $1}') / 1024" | bc)
+size=$(echo "($size - $boot_size) + 250" | bc)
+
+# shrink root file system since btrfs can do that while mounted
+sudo btrfs filesystem resize "$size"M /mnt
+
 # unmount
 sudo umount /mnt
 
 # detach loop device
 sudo losetup -d "$device"
 
+# shrink root partition to just above what is needed
+parted ---pretend-input-tty "$BUILD_PREFIX/$IMG" <<EOF
+resizepart
+3
+"$size"MB
+Yes
+quit
+EOF
+
+# truncate image
+# but first, we need to recompute $size
+size=$(echo "$size + 512 + 2 + $tb_size" | bc)
+truncate --size="$size"M "$BUILD_PREFIX/$IMG"
+sgdisk --move-second-header "$BUILD_PREFIX/$IMG"
+partprobe "$BUILD_PREFIX/$IMG"
+
+
 # compress IMG file
 echo "Compressing..."
 notify-send "Compressing..."
-zstd -z6 --threads=$(echo "$(nproc) / 2" | bc) "$BUILD_PREFIX/$IMG" -o "$ISO_PREFIX/$IMG".zstd
+zstd -z8 --threads=$(echo "$(nproc) / 2" | bc) "$BUILD_PREFIX/$IMG" -o "$ISO_PREFIX/$IMG".zstd
 
 # remove raw IMG file
 echo "Deleting raw IMG file..."
