@@ -247,6 +247,29 @@ notify-send "Cleaning up..."
 sudo arch-chroot /mnt apt autopurge
 sudo arch-chroot /mnt apt clean
 
+# set up bootloader config
+mkdir -p /mnt/boot/extlinux
+vmlinuz=$(ls -v /mnt/boot/vmlinuz* | tail -n1 | sed 's:/: :g' | awk '{print $3}')
+initrd=$(ls -v /mnt/boot/initrd* | tail -n1 | sed 's:/: :g' | awk '{print $3}')
+curr="$PWD"
+cd /mnt/boot
+sudo ln -s "$initrd" initrd.img
+sudo ln -s "$vmlinuz" vmlinuz
+cd "$curr"
+echo -e "ui menu.c32
+
+menu autoboot Welcome to Drauger OS on ARM. Automatic boot in # second{,s}. Press a key for options.
+menu title Drauger OS on ARM Boot Options.
+menu hidden
+
+default Drauger OS on ARM
+
+timeout 5
+label\tDrauger OS on ARM
+kernel\t/vmlinuz
+append\troot=LABEL=D_OS-ROOT rw rootwait audit=0 splash plymouth.ignore-serial-consoles
+initrd\t/initrd.img" > /mnt/boot/extlinux.conf
+
 # unmount
 sudo umount /mnt/boot
 
