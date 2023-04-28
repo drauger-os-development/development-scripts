@@ -79,6 +79,7 @@ cups-ppdc
 cups-server-common
 curl
 dbus
+dbus-x11
 dconf-cli
 dconf-gsettings-backend:amd64
 dconf-service
@@ -548,6 +549,7 @@ xfce4-desktop-service
 xfce4-helpers
 xfce4-notifyd
 xfce4-panel
+xfce4-panel-profiles
 xfce4-pulseaudio-plugin:amd64
 xfce4-session
 xfce4-settings
