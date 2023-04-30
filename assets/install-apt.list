@@ -2,7 +2,6 @@ accountsservice
 accountsservice-ubuntu-schemas
 acl
 adwaita-icon-theme
-alien
 alsa-topology-conf
 alsa-ucm-conf
 alsa-utils
@@ -360,6 +359,7 @@ modemmanager
 mpv
 mtools
 mupdf-tools
+nano
 nautilus-data
 nautilus-extension-gnome-terminal:amd64
 nemo
@@ -433,8 +433,6 @@ rdate
 read-edid
 reiser4progs
 reiserfsprogs
-rpm
-rpm-common
 rpm2cpio
 rsync
 rsyncrypto
@@ -450,6 +448,7 @@ session-migration
 sgml-base
 sgml-data
 shared-mime-info
+slick-greeter
 snapd
 software-properties-common
 sound-theme-freedesktop
