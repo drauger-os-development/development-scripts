@@ -1,16 +1,38 @@
 #!/bin/bash
 set -e
+
+function ask ()
+ {
+         if [ "$XDG_SESSION_TYPE" == "tty" ]; then
+                 builtin read -p "$1 :  " output
+         else
+                 output=$(zenity --entry --text="$1")
+         fi
+         builtin echo "$output"
+ }
+
+
+ function notify ()
+ {
+         if [ "$XDG_SESSION_TYPE" == "tty" ]; then
+                 wall "$1"
+         else
+                 notify-send --app-name="make-iso" "$1"
+         fi
+ }
+
+
 if [ -f $HOME/.config/drauger/make-iso.conf ]; then
 	eval $(grep -v '^#' $HOME/.config/drauger/make-iso.conf)
 else
 	echo "Running first-time config..."
 	mkdir -p $HOME/.config/drauger
-	CHROOT_PREFIX=$(zenity --entry --text="What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
-	BUILD_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be built? Default is /tmp/build.")
+	CHROOT_PREFIX=$(ask "What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
+	BUILD_PREFIX=$(ask "Where would you like the ISOs to be built? Default is /tmp/build.")
 	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp/build"}
-	ISO_PREFIX=$(zenity --entry --text="Where would you like the ISOs to be stored? Default is ~/Downloads.")
+	ISO_PREFIX=$(ask "Where would you like the ISOs to be stored? Default is ~/Downloads.")
 	ISO_PREFIX=${ISO_PREFIX:-"$HOME/Downloads"}
-	KERNEL=$(zenity --entry --text="What kernel would you like to use? Default is linux-drauger.")
+	KERNEL=$(ask "What kernel would you like to use? Default is linux-drauger.")
 	KERNEL=${KERNEL:-"linux-drauger"}
 	builtin echo -e "# Make-ISO config
 # Don't end file paths with forward-slashes
@@ -114,7 +136,7 @@ function_makeiso () {
 	mkdir -p $BUILD_PREFIX/scratch/EFI/EFI/BOOT $BUILD_PREFIX/image/live
 	mkdir -p $BUILD_PREFIX/scratch/EFI/loader/entries
 	echo -e "\nMaking Squashfs\n"
-	notify-send --app-name="make-iso" "Making Squashfs"
+	notify "Making Squashfs"
 	#make Squashfs from chroot
 	sudo mksquashfs $CHROOT_LOCATION $BUILD_PREFIX/image/live/filesystem.squashfs -comp xz -Xbcj x86 -Xdict-size 8k -e boot && notify-send --app-name="make-iso" "Squashfs Completed"
 	#copy initrd and kernel
@@ -147,7 +169,7 @@ menuentry \"Try Drauger OS $VERSION In Safe Graphics Mode\" {
 EOF" > $BUILD_PREFIX/scratch/grub.cfg
 	touch "$BUILD_PREFIX/image/DRAUGER_OS"
 	echo -e "\nSetting up for EFI\n"
-	notify-send --app-name="make-iso" "Setting up for EFI"
+	notify "Setting up for EFI"
 	#setup for EFI
 	#grub-mkstandalone --format=x86_64-efi --output=$BUILD_PREFIX/scratch/bootx64.efi --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
 	cp -v /usr/lib/systemd/boot/efi/systemd-bootx64.efi "$BUILD_PREFIX/scratch/EFI/EFI/BOOT/bootx64.efi"
@@ -176,13 +198,13 @@ options boot=live quiet splash system-installer
 	# mmd -i efi.img -s EFI/* EFI/BOOT
 	mcopy -i efi.img -s EFI/* ::
 	echo -e "\nSetting up for BIOS\n"
-	notify-send --app-name="make-iso" "Setting up for BIOS"
+	notify "Setting up for BIOS"
 	#setup for BIOS
-	grub-mkstandalone --format=i386-pc --output=$BUILD_PREFIX/scratch/core.img --install-modules="linux normal iso9660 biosdisk memdisk search tar ls" --modules="linux normal iso9660 biosdisk search" --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
+	grub-mkstandalone --format=i386-pc --output=$BUILD_PREFIX/scratch/core.img --compress=xz --install-modules="linux normal iso9660 biosdisk memdisk fat part_msdos part_gpt search tar ls" --modules="fat part_msdos part_gpt linux normal iso9660 biosdisk search" --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
 	cat /usr/lib/grub/i386-pc/cdboot.img $BUILD_PREFIX/scratch/core.img > $BUILD_PREFIX/scratch/bios.img
 	# MAKE DEB REPO
 	echo -e "\nSetting up local deb repo\n"
-	notify-send --app-name="make-iso" "Setting up local deb repo"
+	notify "Setting up local deb repo"
 	mkdir -p $BUILD_PREFIX/image/repo
 	deps=$(apt-cache depends "$KERNEL" | grep 'Depends:' | awk '{print $2}')
 	deps="$deps $KERNEL systemd-boot-manager python3-distutils python3-lib2to3"
@@ -192,10 +214,10 @@ options boot=live quiet splash system-installer
 	cd "$base"
 	# DONE MAKING REPO
 	#make the ISO
-	notify-send --app-name="make-iso" "Name ISO Please"
-	output=$(zenity --entry --text="What would you like to name the new ISO?" --entry-text="Please leave the .iso at the end off")
+	notify "Name ISO Please"
+	output=$(ask "What would you like to name the new ISO?")
 	echo -e "\nMaking ISO\n"
-	notify-send --app-name="make-iso" "Making ISO"
+	notify "Making ISO"
 	if [ -f "$ISO_PREFIX/$output-$ARCH.iso" ]; then
 		rm -fv "$ISO_PREFIX/$output-$ARCH.iso"
 	fi
@@ -203,7 +225,7 @@ options boot=live quiet splash system-installer
 	-boot-load-size 4 -boot-info-table --eltorito-catalog boot/grub/boot.cat --grub2-boot-info --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img \
 	-eltorito-alt-boot -e efi.img -no-emul-boot -append_partition 2 0xef "$BUILD_PREFIX/scratch/efi.img" -output "$ISO_PREFIX/$output-$ARCH.iso" \
 	-graft-points "$BUILD_PREFIX/image" /boot/grub/bios.img="$BUILD_PREFIX/scratch/bios.img" efi.img="$BUILD_PREFIX/scratch/efi.img" \
-    /boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg && (echo -e "\nISO Completed!\n"; notify-send --app-name="make-iso" "ISO Completed!")
+    /boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg && (echo -e "\nISO Completed!\n"; notify "ISO Completed!")
 	rm -rf image scratch
 	chmod 644 "$ISO_PREFIX/$output-$ARCH.iso"
 }

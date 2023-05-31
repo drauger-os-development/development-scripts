@@ -171,7 +171,7 @@ notify-send "Making Partition Table and Writing Bootloader..."
 dd if="$BUILD_PREFIX/tow-boot.img" of="$BUILD_PREFIX/$IMG" status=progress conv=notrunc
 rm -v "$BUILD_PREFIX/tow-boot.img"
 sgdisk --move-second-header "$BUILD_PREFIX/$IMG"
-partprobe "$BUILD_PREFIX/$IMG"
+sudo partprobe "$BUILD_PREFIX/$IMG"
 
 # partition
 # first 1MB left for partition table
