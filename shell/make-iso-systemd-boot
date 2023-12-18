@@ -18,6 +18,7 @@ function ask ()
                  wall "$1"
          else
                  notify-send --app-name="make-iso" "$1"
+                 echo -e "\t\t\t### $1 ###"
          fi
  }
 
@@ -87,7 +88,9 @@ clean () {
 	rm -rfv $BUILD_PREFIX
 	echo "Done"
 	mkdir -p $BUILD_PREFIX
-	exit
+	if [ "$1" == "" ]; then
+		exit
+	fi
 }
 
 ARCH="$1"
@@ -124,7 +127,7 @@ read -p "Please make sure that you only have one kernel installed. Press enter w
 Furthermore, please ensure that /proc has been unmounted." ans
 
 function_makeiso () {
-	echo "Making $ARCH ISO"
+	notify "Making $ARCH ISO"
 	if [ ! -d "$BUILD_PREFIX" ]; then
 		mkdir -p "$BUILD_PREFIX"
 	fi
@@ -135,7 +138,6 @@ function_makeiso () {
 	#make work files
 	mkdir -p $BUILD_PREFIX/scratch/EFI/EFI/BOOT $BUILD_PREFIX/image/live
 	mkdir -p $BUILD_PREFIX/scratch/EFI/loader/entries
-	echo -e "\nMaking Squashfs\n"
 	notify "Making Squashfs"
 	#make Squashfs from chroot
 	sudo mksquashfs $CHROOT_LOCATION $BUILD_PREFIX/image/live/filesystem.squashfs -comp xz -Xbcj x86 -Xdict-size 8k -e boot && notify-send --app-name="make-iso" "Squashfs Completed"
@@ -168,7 +170,6 @@ menuentry \"Try Drauger OS $VERSION In Safe Graphics Mode\" {
 
 EOF" > $BUILD_PREFIX/scratch/grub.cfg
 	touch "$BUILD_PREFIX/image/DRAUGER_OS"
-	echo -e "\nSetting up for EFI\n"
 	notify "Setting up for EFI"
 	#setup for EFI
 	#grub-mkstandalone --format=x86_64-efi --output=$BUILD_PREFIX/scratch/bootx64.efi --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
@@ -197,26 +198,27 @@ options boot=live quiet splash system-installer
 	mkfs.vfat efi.img
 	# mmd -i efi.img -s EFI/* EFI/BOOT
 	mcopy -i efi.img -s EFI/* ::
-	echo -e "\nSetting up for BIOS\n"
 	notify "Setting up for BIOS"
 	#setup for BIOS
 	grub-mkstandalone --format=i386-pc --output=$BUILD_PREFIX/scratch/core.img --compress=xz --install-modules="linux normal iso9660 biosdisk memdisk fat part_msdos part_gpt search tar ls" --modules="fat part_msdos part_gpt linux normal iso9660 biosdisk search" --locales="" --fonts=""  "boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg"
 	cat /usr/lib/grub/i386-pc/cdboot.img $BUILD_PREFIX/scratch/core.img > $BUILD_PREFIX/scratch/bios.img
 	# MAKE DEB REPO
-	echo -e "\nSetting up local deb repo\n"
 	notify "Setting up local deb repo"
 	mkdir -p $BUILD_PREFIX/image/repo
-	deps=$(apt-cache depends "$KERNEL" | grep 'Depends:' | awk '{print $2}')
-	deps="$deps $KERNEL systemd-boot-manager python3-distutils python3-lib2to3"
 	base="$PWD"
+	sudo chroot $CHROOT_LOCATION apt-get update
+	deps=$(sudo chroot "$CHROOT_LOCATION" apt-cache depends "$KERNEL")
+	deps=$(echo "$deps" | grep 'Depends:' | awk '{print $2}')
+    	deps="$deps $KERNEL systemd-boot-manager systemd-boot python3-distutils python3-lib2to3 systemd-boot-efi efibootmgr"
 	cd $BUILD_PREFIX/image/repo
-	apt-get download $deps
+	sudo chroot $CHROOT_LOCATION apt-get download $deps
+	sudo chroot $CHROOT_LOCATION apt-get clean
+        sudo mv -v $CHROOT_LOCATION/*.deb .
 	cd "$base"
 	# DONE MAKING REPO
 	#make the ISO
 	notify "Name ISO Please"
 	output=$(ask "What would you like to name the new ISO?")
-	echo -e "\nMaking ISO\n"
 	notify "Making ISO"
 	if [ -f "$ISO_PREFIX/$output-$ARCH.iso" ]; then
 		rm -fv "$ISO_PREFIX/$output-$ARCH.iso"
@@ -226,8 +228,8 @@ options boot=live quiet splash system-installer
 	-eltorito-alt-boot -e efi.img -no-emul-boot -append_partition 2 0xef "$BUILD_PREFIX/scratch/efi.img" -output "$ISO_PREFIX/$output-$ARCH.iso" \
 	-graft-points "$BUILD_PREFIX/image" /boot/grub/bios.img="$BUILD_PREFIX/scratch/bios.img" efi.img="$BUILD_PREFIX/scratch/efi.img" \
     /boot/grub/grub.cfg=$BUILD_PREFIX/scratch/grub.cfg && (echo -e "\nISO Completed!\n"; notify "ISO Completed!")
-	rm -rf image scratch
-	chmod 644 "$ISO_PREFIX/$output-$ARCH.iso"
+    chmod 644 "$ISO_PREFIX/$output-$ARCH.iso"
+	clean 0
 }
 
 { time function_makeiso 2>&1; } 2>$HOME/.time.log
