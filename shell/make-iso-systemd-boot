@@ -143,10 +143,6 @@ fi
 
 
 CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
-# This will probably get deleted later
-#if [ "$ARCH" == "--override" ]; then
-#CHROOT_LOCATION="/home/batcastle/Downloads/ISOS/DONE/Drauger_OS-7.5.1-TRASH-AMD64/live/chroot"
-#fi
 
 read -p "Please make sure that you only have one kernel installed. Press enter when you are sure this is the case inside the chroot.
 Furthermore, please ensure that /proc has been unmounted." ans
@@ -278,9 +274,24 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	mkdir -p $BUILD_PREFIX/image/repo
 	base="$PWD"
 	sudo chroot $CHROOT_LOCATION apt-get update
-	deps=$(sudo chroot "$CHROOT_LOCATION" apt-cache depends "$KERNEL")
-	deps=$(echo "$deps" | grep 'Depends:' | awk '{print $2}')
-    	deps="$deps $KERNEL systemd-boot-manager systemd-boot python3-lib2to3 systemd-boot-efi efibootmgr"
+	deps="$KERNEL systemd-boot-manager systemd-boot efibootmgr"
+	all_installed=$(sudo chroot "$CHROOT_LOCATION" dpkg -l)
+	for each in $deps; do
+		test=$(sudo chroot "$CHROOT_LOCATION" apt-cache depends "$each")
+		test=$(echo "$test" | grep 'Depends:' | awk '{print $2}')
+		for each1 in $test; do
+			if $(echo "$all_installed" | grep "$each" | grep -q "^ii"); then
+				echo "" > /dev/null
+			else
+				if [ "$all" == "" ]; then
+					all="$each"
+				else
+					all="$all $each"
+				fi
+			fi
+		done
+	done
+	deps="$deps $all"
 	cd $BUILD_PREFIX/image/repo
 	sudo chroot $CHROOT_LOCATION apt-get download $deps
 	sudo chroot $CHROOT_LOCATION apt-get clean
