@@ -2,24 +2,24 @@
 # -*- coding: utf-8 -*-
 #
 #  mkchroot.sh
-#  
+#
 #  Copyright 2025 Thomas Castleman <batcastle@draugeros.org>
-#  
+#
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#  
+#
 #
 set -e
 
@@ -87,13 +87,13 @@ function full_disconnect ()
 }
 
 
-function connect () 
+function connect ()
 {
 	root mount "$@"
 }
 
 
-function connect_bind () 
+function connect_bind ()
 {
 	root mount --bind "$1" "$2"
 }
@@ -220,7 +220,7 @@ function clean ()
 	full_disconnect 1>/dev/null 2>/dev/null
 	set -e
 	gain_root_privs
-	root rm -rf "$CHROOT_LOCATION"
+	root rm -rfv "$CHROOT_LOCATION"
 	pid="$!"
 	chars=("-" '\' "|" "/")
 	count=0
@@ -331,7 +331,7 @@ if [ "$dists" == "${dists/$CODENAME/}" ] ; then
 fi
 
 # check what codename is based on
-UBUNTU_CODENAME=$(curl https://raw.githubusercontent.com/drauger-os-development/development-scripts/master/assets/release_bases.conf 2>/dev/null | grep "$CODENAME" | sed 's/=/ /g' | awk '{print $2}')
+UBUNTU_CODENAME=$(curl https://download.draugeros.org/build/release_bases.conf 2>/dev/null | grep "$CODENAME" | sed 's/=/ /g' | awk '{print $2}')
 
 echo -e "\t\t### Starting build of Drauger OS \"$CODENAME\", based on Ubuntu \"$UBUNTU_CODENAME\". ###
 
@@ -360,7 +360,7 @@ if [ "$3" != "--bypass-warning" ]; then
 			break
 		else
 			echo "Please answer with either 'yes' or 'no'."
-		fi	
+		fi
 	done
 fi
 
@@ -380,16 +380,19 @@ notify "Bootstraping..."
 root debootstrap --variant=buildd --arch "$ARCH" "$UBUNTU_CODENAME" "$CHROOT_LOCATION" http://archive.ubuntu.com/ubuntu/
 
 # install ca-certificates for HTTPS repos, gnupg for repo signing, flatpak for flatpak apps
-cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --force-yes -y ca-certificates gnupg
+cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y ca-certificates gnupg wget
 
 # set sources
 cd "$CHROOT_LOCATION/etc/apt"
 root rm sources.list
-curl https://raw.githubusercontent.com/drauger-os-development/development-scripts/master/assets/sources.list 2>/dev/null | sed "s/{{ ubu_release }}/$UBUNTU_CODENAME/g" | sed "s/{{ release }}/$CODENAME/g" | sudo tee sources.list 1>/dev/null
+# curl https://download.draugeros.org/build/sources.list 2>/dev/null | sed "s/{{ ubu_release }}/$UBUNTU_CODENAME/g" | sudo tee sources.list 1>/dev/null
 
-# add GPG keys
-gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys 821EFFB62DEFB024
-gpg --export 821EFFB62DEFB024 | sudo tee "$CHROOT_LOCATION/etc/apt/trusted.gpg.d/drauger_os_main.gpg" 2>/dev/null 1>/dev/null
+debs=$(curl https://apt.draugeros.org/pool/main/d/drauger-sources/ | grep "href" | grep -v "\.\." | awk '{print $2}' | sed 's/\"/ /g' | awk '{print $2}' | sort -V)
+debs=$(echo "$debs" | tail -n1)
+cmd_chroot wget https://apt.draugeros.org/pool/main/d/drauger-sources/$debs
+cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y /$debs
+
+cmd_chroot apt-get update
 
 # add i386 support on AMD64
 if [ "$ARCH" == "amd64" ]; then
@@ -398,15 +401,15 @@ fi
 
 # update chroot to Drauger OS packages.
 cmd_basic_chroot apt-get update
-cmd_chroot apt-get -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated dist-upgrade
+cmd_chroot apt-get --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated dist-upgrade
 
 # set keyboard config options
-curl https://raw.githubusercontent.com/drauger-os-development/development-scripts/master/assets/preseed.conf 2>/dev/null | sudo tee "$CHROOT_LOCATION"/preseed.conf
+curl https://download.draugeros.org/build/preseed.conf 2>/dev/null | sudo tee "$CHROOT_LOCATION"/preseed.conf
 cmd_chroot debconf-set-selections preseed.conf
 root rm -v "$CHROOT_LOCATION"/preseed.conf
 
 # install apt package installation list, and kernel
-to_install_list="$(curl https://raw.githubusercontent.com/drauger-os-development/development-scripts/master/assets/install-apt.list 2>/dev/null)"
+to_install_list="$(curl https://download.draugeros.org/build/apt_install.list 2>/dev/null)"
 # avail_list=$(cmd_basic_chroot apt-cache search . | awk '{print $1}')
 # pkg_list=()
 # not_installed=()
@@ -438,9 +441,10 @@ to_install_list="$(curl https://raw.githubusercontent.com/drauger-os-development
 # 	echo -e "\t\tNo packages needed could be installed."
 # 	exit 1
 # fi
+echo "HERE!"
 {
 # 	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get install -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated ${pkg_list[@]} $KERNEL
-	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get install -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated ${to_install_list} $KERNEL
+	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get install --assume-yes -o Dpkg::Options::="--force-confold" --allow-unauthenticated ${to_install_list} $KERNEL
 } || {
 	DEBIAN_FRONTEND=noninteractive cmd_chroot dpkg --configure -a --force-confold
 } || {
@@ -458,13 +462,13 @@ fi
 cmd_chroot flatpak remote-add --system --verbose --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
 # install flatpak package list
-pkg_list="$(curl https://raw.githubusercontent.com/drauger-os-development/development-scripts/master/assets/install-flatpak.list 2>/dev/null)"
+pkg_list="$(curl https://download.draugeros.org/build/flatpak.list 2>/dev/null)"
 cmd_chroot flatpak install -y --noninteractive $pkg_list
 
 # remove apt package removal list
-pkg_list="$(curl https://raw.githubusercontent.com/drauger-os-development/development-scripts/master/assets/remove-apt.list 2>/dev/null)"
+pkg_list="$(curl https://download.draugeros.org/build/apt_remove.list 2>/dev/null)"
 {
-	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get purge -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated $pkg_list
+	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get purge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated $pkg_list
 } || {
 	DEBIAN_FRONTEND=noninteractive cmd_basic_chroot dpkg --configure -a --force-confold
 }
@@ -478,38 +482,43 @@ kernel=$(ls "$CHROOT_LOCATION/boot" | grep "-" | sed 's/-/ /g' | awk '{print $2}
 cmd_chroot mkinitramfs -o "/boot/initrd.img-$kernel" "$kernel"
 
 # create user
+cmd_chroot groupadd pulse
+cmd_chroot groupadd lpadmin
 root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home --groups adm,cdrom,sudo,audio,dip,video,plugdev,pulse,lpadmin live
 
 # configure user
 mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
-cp -v "$CHROOT_LOCATION/usr/share/applications/system-installer.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
+cp -v "$CHROOT_LOCATION/usr/share/applications/edamame.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
 echo "root:toor
 live:toor" | sudo chpasswd --root "$CHROOT_LOCATION"
-cmd_basic_chroot wget https://github.com/drauger-os-development/development-scripts/raw/master/assets/Drauger_OS_Xfce_Panel_Profile.tar.bz2
-cmd_basic_chroot wget https://github.com/drauger-os-development/development-scripts/raw/master/assets/config_folder.tar.xz
-cmd_basic_chroot su live -c xfce4-panel-profiles load ./Drauger_OS_Xfce_Panel_Profile.tar.bz2
-cmd_basic_chroot tar -xvf config_folder.tar.xz -C /home/live
 echo -e 'pcm.!default pulse\nctl.!default pulse' | sudo tee "$CHROOT_LOCATION/home/live/.asoundrc"
-cmd_basic_chroot drauger-wallpapers-override
+cmd_chroot drauger-wallpapers-override
 
 # other settings
-echo "[SeatDefaults]
-autologin-user-timeout=0
-autologin-user=live
-user-session=xfce
-allow-guest=true
-greeter-session=slick-greeter" | sudo tee "$CHROOT_LOCATION/etc/lightdm/lightdm.conf"
-echo "[Greeter]
-theme-name=Nocturn
-icon-theme-name=Papirus-Dark
-activate-numlock=true
-show-power=false" | sudo tee "$CHROOT_LOCATION/etc/lightdm/slick-greeter.conf"
+if [ ! -d "$CHROOT_LOCATION/etc/sddm.conf.d" ]; then
+	root mkdir -pv "$CHROOT_LOCATION/etc/sddm.conf.d"
+fi
+echo "[General]
+GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+DisplayServer=X11
+
+[Autologin]
+User=live
+Session=plasmawayland
+
+[Theme]
+Current=breeze
+CursorTheme=breeze-dark
+
+[Wayland]
+EnableHiDPI=true
+
+[X11]
+EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
 
 # clean up
-root rm -v "$CHROOT_LOCATION/Drauger_OS_Xfce_Panel_Profile.tar.bz2"
-root rm -v "$CHROOT_LOCATION/config_folder.tar.xz"
-DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt autopurge -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
-cmd_basic_chroot apt clean
+DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
+cmd_basic_chroot apt-get clean
 
 # notify user of completed chroot
 echo -e "\n\n\t\t\033[1m### Build of Drauger OS \"$CODENAME\" completed! ###\033[0m"
