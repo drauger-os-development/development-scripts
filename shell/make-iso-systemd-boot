@@ -1,33 +1,69 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
+#
+#  mkchroot.sh
+#
+#  Copyright 2025 Thomas Castleman <batcastle@draugeros.org>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#
 set -e
 
 function ask ()
- {
-         if [ "$XDG_SESSION_TYPE" == "tty" ]; then
-                 builtin read -p "$1 :  " output
-         else
-                 output=$(zenity --entry --text="$1")
-         fi
-         builtin echo "$output"
- }
+{
+		if [ "$MKISO_HEADLESS_MODE" == "" ]; then
+			if [ "$XDG_SESSION_TYPE" == "tty" ]; then
+					builtin read -p "$1 :  " output
+			else
+					output=$(zenity --entry --text="$1")
+			fi
+		else
+			if $(echo "$1" | grep -q "chroots are stored in"); then
+				output="$MKISO_STORAGE_FOLDER"
+			elif $(echo "$1" | grep -q "ISOs to be built"); then
+				output="$MKISO_BUILD_FOLDER"
+			elif $(echo "$1" | grep -q "kernel"); then
+				output="$MKISO_KERNEL"
+			elif $(echo "$1" | grep -q "ISOs to be stored"); then
+				output="$MKISO_STORE_ISO"
+			elif $(echo "$1" | greo -q "name the new ISO"); then
+				output="$MKISO_FILE_NAME"
+			fi
+		fi
+        builtin echo "$output"
+}
 
 
  function notify ()
  {
-         if [ "$XDG_SESSION_TYPE" == "tty" ]; then
+         if [ "$XDG_SESSION_TYPE" == "tty" ] || [ "$MKCHROOT_HEADLESS_MODE" != "" ]; then
                  wall "$1"
          else
-		# Sometimes, notify-send can fail. When that happens, just call wall and call it a day
-		{
-                 	notify-send --app-name="make-iso" "$1"
-		} || {
-			wall "$1"
-			flag="1"
-		}
-		# If we already called wall, don't echo. It's redundent.
-		if [[ "$flag" != "1" ]]; then
-	                 echo -e "\t\t\t### $1 ###"
-		fi
+			# Sometimes, notify-send can fail. When that happens, just call wall and call it a day
+			{
+				notify-send --app-name="make-iso" "$1"
+			} || {
+				wall "$1"
+				flag="1"
+			}
+			# If we already called wall, don't echo. It's redundent.
+			if [[ "$flag" != "1" ]]; then
+				echo -e "\t\t\t### $1 ###"
+			fi
          fi
  }
 
@@ -47,7 +83,9 @@ if [ -f $HOME/.config/drauger/make-iso.conf ]; then
 	eval $(grep -v '^#' $HOME/.config/drauger/make-iso.conf)
 else
 	echo "Running first-time config..."
-	mkdir -p $HOME/.config/drauger
+	if [ "$MKISO_HEADLESS_MODE" == "" ]; then
+		mkdir -p $HOME/.config/drauger
+	fi
 	CHROOT_PREFIX=$(ask "What is the folder your chroots are stored in? This folder should contain a structure of ARCH/CODENAME,\nwhere ARCH is the CPU arch of the chroot, and codename is the codename of the OS in the chroot.")
 	BUILD_PREFIX=$(ask "Where would you like the ISOs to be built? Default is /tmp/build.")
 	BUILD_PREFIX=${BUILD_PREFIX:-"/tmp/build"}
@@ -55,7 +93,8 @@ else
 	ISO_PREFIX=${ISO_PREFIX:-"$HOME/Downloads"}
 	KERNEL=$(ask "What kernel would you like to use? Default is linux-drauger.")
 	KERNEL=${KERNEL:-"linux-drauger"}
-	builtin echo -e "# Make-ISO config
+	if [ "$MKCHROOT_HEADLESS_MODE" == "" ]; then
+		builtin echo -e "# Make-ISO config
 # Don't end file paths with forward-slashes
 # Chroot location
 CHROOT_PREFIX=$CHROOT_PREFIX
@@ -65,6 +104,7 @@ BUILD_PREFIX=$BUILD_PREFIX
 ISO_PREFIX=$ISO_PREFIX
 # Kernel to use
 KERNEL=$KERNEL" > $HOME/.config/drauger/make-iso.conf
+	fi
 fi
 
 needed=""
@@ -76,12 +116,6 @@ if ! $(which grub-mkstandalone 1>/dev/null 2>/dev/null); then
 fi
 if ! $(which xorriso 1>/dev/null 2>/dev/null); then
 	needed="$needed xorriso"
-fi
-if ! $(which zenity 1>/dev/null 2>/dev/null); then
-	needed="$needed zenity"
-fi
-if ! $(which notify-send 1>/dev/null 2>/dev/null); then
-	needed="$needed libnotify-bin"
 fi
 if ! $(which mmd 1>/dev/null 2>/dev/null); then
 	needed="$needed mtools"
@@ -100,6 +134,14 @@ if [ ! -f /usr/bin/find ]; then
 fi
 if [ ! -f /usr/bin/arch-chroot ]; then
 	needed="$needed arch-chroot"
+fi
+if [ "$XDG_SESSION_TYPE" != "tty" ] && [ "$MKISO_HEADLESS_MODE" == "" ]; then
+	if ! $(which zenity 1>/dev/null 2>/dev/null); then
+    	    needed="$needed zenity"
+	fi
+	if ! $(which notify-send 1>/dev/null 2>/dev/null); then
+    	    needed="$needed libnotify-bin"
+	fi
 fi
 if [[ "$needed" != "" ]]; then
 	echo "Error: Missing depedencies. Please install the following packages to use this script." 1>&2
