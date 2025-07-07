@@ -186,8 +186,10 @@ fi
 
 CHROOT_LOCATION="$CHROOT_PREFIX/$ARCH/$CODENAME"
 
-read -p "Please make sure that you only have one kernel installed. Press enter when you are sure this is the case inside the chroot.
+if [ "$MKISO_HEADLESS_MODE" == "" ]; then
+	read -p "Please make sure that you only have one kernel installed. Press enter when you are sure this is the case inside the chroot.
 Furthermore, please ensure that /proc has been unmounted." ans
+fi
 
 function_makeiso () {
 	notify "Making $ARCH ISO"
