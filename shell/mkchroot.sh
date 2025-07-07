@@ -3,7 +3,7 @@
 #
 #  mkchroot.sh
 #  
-#  Copyright 2023 Thomas Castleman <batcastle@draugeros.org>
+#  Copyright 2025 Thomas Castleman <batcastle@draugeros.org>
 #  
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -26,18 +26,26 @@ set -e
 
 function ask ()
 {
-        if [ "$XDG_SESSION_TYPE" == "tty" ]; then
-                builtin read -p "$1 :  " output
-        else
-                output=$(zenity --entry --text="$1")
-        fi
+		if [ "$MKCHROOT_HEADLESS_MODE" == "" ]; then
+			if [ "$XDG_SESSION_TYPE" == "tty" ]; then
+					builtin read -p "$1 :  " output
+			else
+					output=$(zenity --entry --text="$1")
+			fi
+		else
+			if $(echo "$1" | grep -q "chroots stored in"); then
+				output="$MKCHROOT_STORAGE_FOLDER"
+			elif $(echo "$1" | grep -q "kernel"); then
+				output="$MKCHROOT_KERNEL"
+			fi
+		fi
         builtin echo "$output"
 }
 
 
 function notify ()
 {
-        if [ "$XDG_SESSION_TYPE" == "tty" ]; then
+        if [ "$XDG_SESSION_TYPE" == "tty" ] || [ "$MKCHROOT_HEADLESS_MODE" != "" ]; then
                 wall "$1"
         else
                 notify-send --app-name="mkchroot" "mkchroot" "$1"
@@ -233,17 +241,21 @@ if [ -f $HOME/.config/drauger/mkchroot.conf ]; then
         eval $(grep -v '^#' $HOME/.config/drauger/mkchroot.conf)
 else
         builtin echo "Running first-time config..."
-        mkdir -p $HOME/.config/drauger
+        if [ "$MKCHROOT_HEADLESS_MODE" == "" ]; then
+			mkdir -p $HOME/.config/drauger
+		fi
         CHROOT_PREFIX=$(ask "What is the folder you want your chroots stored in?")
         CHROOT_PREFIX=${CHROOT_PREFIX:-"$HOME"}
         KERNEL=$(ask "What kernel would you like to use? Default is linux-drauger.")
         KERNEL=${KERNEL:-"linux-drauger"}
-        builtin echo -e "# mkchroot config
+        if [ "$MKCHROOT_HEADLESS_MODE" == "" ]; then
+			builtin echo -e "# mkchroot config
 # Don't end file paths with forward-slashes
 # Chroot location
 CHROOT_PREFIX=$CHROOT_PREFIX
 # Kernel to use
 KERNEL=$KERNEL" > $HOME/.config/drauger/mkchroot.conf
+		fi
 fi
 
 needed=""
@@ -268,7 +280,9 @@ fi
 if ! $(which sudo 1>/dev/null 2>/dev/null); then
         needed="$needed sudo"
 fi
-if [ "$XDG_SESSION_TYPE" != "tty" ]; then
+echo "$XDG_SESSION_TYPE"
+echo "$MKCHROOT_HEADLESS_MODE"
+if [ "$XDG_SESSION_TYPE" != "tty" ] && [ "$MKCHROOT_HEADLESS_MODE" == "" ]; then
 	if ! $(which zenity 1>/dev/null 2>/dev/null); then
     	    needed="$needed zenity"
 	fi
