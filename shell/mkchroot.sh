@@ -280,8 +280,6 @@ fi
 if ! $(which sudo 1>/dev/null 2>/dev/null); then
         needed="$needed sudo"
 fi
-echo "$XDG_SESSION_TYPE"
-echo "$MKCHROOT_HEADLESS_MODE"
 if [ "$XDG_SESSION_TYPE" != "tty" ] && [ "$MKCHROOT_HEADLESS_MODE" == "" ]; then
 	if ! $(which zenity 1>/dev/null 2>/dev/null); then
     	    needed="$needed zenity"
