@@ -124,7 +124,7 @@ if ! $(which mmd 1>/dev/null 2>/dev/null); then
 	needed="$needed mtools"
 fi
 if ! $(which mkfs.vfat 1>/dev/null 2>/dev/null); then
-	needed="$needed dosfstool"
+	needed="$needed dosfstools"
 fi
 if [ ! -f /usr/lib/grub/x86_64-efi/modinfo.sh ]; then
 	needed="$needed grub-efi-amd64-bin"
