@@ -47,6 +47,36 @@ function ask ()
         builtin echo "$output"
 }
 
+function gain_root_privs ()
+{
+	sudo -K
+	if [ "$EUID" != "0" ]; then
+		echo "OBTAINING ROOT PRIVLEGES"
+		while true; do
+			read -rsp "Obtaining root password for $(whoami): " PASS
+			echo -e "\n"
+			echo -En "$PASS" | sudo -S --prompt="" --validate 2>/dev/null 1>/dev/null
+			if [ "$?" == "0" ]; then
+				echo -e "ROOT PRIVLEGES OBTAINED"
+				break
+			fi
+			echo -e "Password incorrect. Please, try again.\n" 1>&2
+		done
+	fi
+}
+
+function root ()
+{
+	# I REALLY feel uncomfortable with this function. But it works how it should
+	# Do not use this function to gain root privs, while also handling a pipe,
+	# Data will not be passed correctly through the pipe.
+	if [ "$EUID" != "0" ]; then
+		echo -En "$PASS" | sudo -S $@
+	else
+		$@
+	fi
+}
+
 
  function notify ()
  {
@@ -69,14 +99,14 @@ function ask ()
 
 function unmount ()
 {
-	sudo umount -l $CHROOT_LOCATION/proc || echo "No need to unmount proc"
-	sudo umount -l $CHROOT_LOCATION/sys/firmware/efi/efivars || echo "No need to unmount efivars"
-	sudo umount -l $CHROOT_LOCATION/sys || echo "No need to unmount sys"
-	sudo umount -l $CHROOT_LOCATION/dev/pts || echo "No need to unmount pts"
-	sudo umount -l $CHROOT_LOCATION/dev/shm || echo "No need to unmount shm"
-	sudo umount -l $CHROOT_LOCATION/dev || echo "No need to unmount dev"
-	sudo umount -l $CHROOT_LOCATION/run || echo "No need to unmount run"
-	sudo umount -l $CHROOT_LOCATION/tmp || echo "No need to unmount tmp"
+	root umount -l $CHROOT_LOCATION/proc || echo "No need to unmount proc"
+	root umount -l $CHROOT_LOCATION/sys/firmware/efi/efivars || echo "No need to unmount efivars"
+	root umount -l $CHROOT_LOCATION/sys || echo "No need to unmount sys"
+	root umount -l $CHROOT_LOCATION/dev/pts || echo "No need to unmount pts"
+	root umount -l $CHROOT_LOCATION/dev/shm || echo "No need to unmount shm"
+	root umount -l $CHROOT_LOCATION/dev || echo "No need to unmount dev"
+	root umount -l $CHROOT_LOCATION/run || echo "No need to unmount run"
+	root umount -l $CHROOT_LOCATION/tmp || echo "No need to unmount tmp"
 }
 
 if [ -f $HOME/.config/drauger/make-iso.conf ]; then
@@ -201,39 +231,40 @@ function_makeiso () {
 	fi
 	cd "$BUILD_PREFIX"
 	VERSION=$(cat $CHROOT_LOCATION/etc/lsb-release | grep 'DISTRIB_RELEASE=' | sed 's/DISTRIB_RELEASE=//g')
+	gain_root_privs
 	#clean up the chroot
 	{
-		sudo arch-chroot "$CHROOT_LOCATION" flatpak repair
+		root arch-chroot "$CHROOT_LOCATION" flatpak repair
 	} || {
 		unmount
-		sudo arch-chroot "$CHROOT_LOCATION" flatpak repair
+		root arch-chroot "$CHROOT_LOCATION" flatpak repair
 	}
-	sudo rm -rfv $CHROOT_LOCATION/var/crash/* $CHROOT_LOCATION/root/* $CHROOT_LOCATION/home/live/.bash_history $CHROOT_LOCATION/var/log/*
-	sudo rm -rfv $CHROOT_LOCATION/tmp/* $CHROOT_LOCATION/var/lib/apt/lists/* $CHROOT_LOCATION/home/live/.kde/cache-*/* $CHROOT_LOCATION/home/live/.kde4/cache-*/*
-	sudo rm -rfv $CHROOT_LOCATION/home/live/.kde/tmp-*/* $CHROOT_LOCATION/home/live/.kde4/tmp-*/*
-	sudo find $CHROOT_LOCATION/* -depth -name '__pycache__' -exec rm -rfv {} +
-	sudo find $CHROOT_LOCATION/*  -depth -name '*.dpkg-old' -exec rm -rfv {} +
+	root rm -rfv $CHROOT_LOCATION/var/crash/* $CHROOT_LOCATION/root/* $CHROOT_LOCATION/home/live/.bash_history $CHROOT_LOCATION/var/log/*
+	root rm -rfv $CHROOT_LOCATION/tmp/* $CHROOT_LOCATION/var/lib/apt/lists/* $CHROOT_LOCATION/home/live/.kde/cache-*/* $CHROOT_LOCATION/home/live/.kde4/cache-*/*
+	root rm -rfv $CHROOT_LOCATION/home/live/.kde/tmp-*/* $CHROOT_LOCATION/home/live/.kde4/tmp-*/*
+	root find $CHROOT_LOCATION/* -depth -name '__pycache__' -exec rm -rfv {} +
+	root find $CHROOT_LOCATION/*  -depth -name '*.dpkg-old' -exec rm -rfv {} +
 	{
-		sudo arch-chroot "$CHROOT_LOCATION" apt clean
+		root arch-chroot "$CHROOT_LOCATION" apt clean
 	} || {
 		unmount
-		sudo arch-chroot "$CHROOT_LOCATION" apt clean
+		root arch-chroot "$CHROOT_LOCATION" apt clean
 	}
 	unmount
 	{
-		sudo arch-chroot "$CHROOT_LOCATION" apt -y autopurge
+		root arch-chroot "$CHROOT_LOCATION" apt -y autopurge
 	} || {
 		unmount
-		sudo arch-chroot "$CHROOT_LOCATION" apt -y autopurge
+		root arch-chroot "$CHROOT_LOCATION" apt -y autopurge
 	}
 	unmount
-	sudo rm -rfv $CHROOT_LOCATION/var/cache/*
+	root rm -rfv $CHROOT_LOCATION/var/cache/*
 	#make work files
 	mkdir -p $BUILD_PREFIX/scratch/EFI/EFI/BOOT $BUILD_PREFIX/image/live
 	mkdir -p $BUILD_PREFIX/scratch/EFI/loader/entries
 	notify "Making Squashfs"
 	#make Squashfs from chroot
-	sudo mksquashfs $CHROOT_LOCATION $BUILD_PREFIX/image/live/filesystem.squashfs -comp xz -Xbcj x86 -Xdict-size 8k -e boot && notify "Squashfs Completed"
+	root mksquashfs $CHROOT_LOCATION $BUILD_PREFIX/image/live/filesystem.squashfs -comp xz -Xbcj x86 -Xdict-size 8k -e boot && notify "Squashfs Completed"
 	#copy initrd and kernel
 	cp -v $CHROOT_LOCATION/boot/vmlinuz-* $BUILD_PREFIX/image/vmlinuz
 	cp -v $CHROOT_LOCATION/boot/vmlinuz-* $BUILD_PREFIX/scratch/EFI/vmlinuz
@@ -320,11 +351,11 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	notify "Setting up local deb repo"
 	mkdir -p $BUILD_PREFIX/image/repo
 	base="$PWD"
-	sudo chroot $CHROOT_LOCATION apt-get update
+	root chroot $CHROOT_LOCATION apt-get update
 	deps="$KERNEL systemd-boot-manager systemd-boot efibootmgr"
-	all_installed=$(sudo chroot "$CHROOT_LOCATION" dpkg -l)
+	all_installed=$(root chroot "$CHROOT_LOCATION" dpkg -l)
 	for each in $deps; do
-		test=$(sudo chroot "$CHROOT_LOCATION" apt-cache depends "$each")
+		test=$(root chroot "$CHROOT_LOCATION" apt-cache depends "$each")
 		test=$(echo "$test" | grep 'Depends:' | awk '{print $2}')
 		for each1 in $test; do
 			if $(echo "$all_installed" | grep "$each" | grep -q "^ii"); then
@@ -340,9 +371,9 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	done
 	deps="$deps $all"
 	cd $BUILD_PREFIX/image/repo
-	sudo chroot $CHROOT_LOCATION apt-get download $deps
-	sudo chroot $CHROOT_LOCATION apt-get clean
-	sudo mv -v $CHROOT_LOCATION/*.deb .
+	root chroot $CHROOT_LOCATION apt-get download $deps
+	root chroot $CHROOT_LOCATION apt-get clean
+	root mv -v $CHROOT_LOCATION/*.deb .
 	cd "$base"
 	# DONE MAKING REPO
 	#make the ISO
