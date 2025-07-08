@@ -114,6 +114,9 @@ fi
 if ! $(which grub-mkstandalone 1>/dev/null 2>/dev/null); then
 	needed="$needed grub-common"
 fi
+if [ ! -f /usr/lib/systemd/boot/efi/systemd-bootx64.efi ]; then
+	needed="$needed systemd-boot-efi"
+fi
 if ! $(which xorriso 1>/dev/null 2>/dev/null); then
 	needed="$needed xorriso"
 fi
