@@ -383,6 +383,9 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	if [ -f "$ISO_PREFIX/$output-$ARCH.iso" ]; then
 		rm -fv "$ISO_PREFIX/$output-$ARCH.iso"
 	fi
+	if [ ! -d "$ISO_PREFIX" ]; then
+		mkdir -p "$ISO_PREFIX"
+	fi
 	xorriso -as mkisofs -iso-level 2 -full-iso9660-filenames -volid "Drauger_OS_$VERSION" --md5 -eltorito-boot boot/grub/bios.img -no-emul-boot \
 	-boot-load-size 4 -boot-info-table --eltorito-catalog boot/grub/boot.cat --grub2-boot-info --grub2-mbr /usr/lib/grub/i386-pc/boot_hybrid.img \
 	-eltorito-alt-boot -e efi.img -no-emul-boot -append_partition 2 0xef "$BUILD_PREFIX/scratch/efi.img" -output "$ISO_PREFIX/$output-$ARCH.iso" \
