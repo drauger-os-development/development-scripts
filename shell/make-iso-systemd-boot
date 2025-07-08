@@ -199,7 +199,7 @@ function_makeiso () {
 	if [ ! -d "$BUILD_PREFIX" ]; then
 		mkdir -p "$BUILD_PREFIX"
 	fi
-	cd $BUILD_PREFIX
+	cd "$BUILD_PREFIX"
 	VERSION=$(cat $CHROOT_LOCATION/etc/lsb-release | grep 'DISTRIB_RELEASE=' | sed 's/DISTRIB_RELEASE=//g')
 	#clean up the chroot
 	{
