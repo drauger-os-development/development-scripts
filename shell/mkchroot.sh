@@ -132,7 +132,7 @@ function gain_root_privs ()
 		while true; do
 			read -rsp "Obtaining root password for $(whoami): " PASS
 			echo -e "\n"
-			echo -En "$PASS" | sudo -S --prompt="" --validate #2>/dev/null 1>/dev/null
+			echo -En "$PASS" | sudo -S --prompt="" --validate 2>/dev/null 1>/dev/null
 			if [ "$?" == "0" ]; then
 				echo -e "ROOT PRIVLEGES OBTAINED"
 				break
