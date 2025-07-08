@@ -40,7 +40,7 @@ function ask ()
 				output="$MKISO_KERNEL"
 			elif $(echo "$1" | grep -q "ISOs to be stored"); then
 				output="$MKISO_STORE_ISO"
-			elif $(echo "$1" | greo -q "name the new ISO"); then
+			elif $(echo "$1" | grep -q "name the new ISO"); then
 				output="$MKISO_FILE_NAME"
 			fi
 		fi
