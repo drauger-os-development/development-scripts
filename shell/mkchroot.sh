@@ -56,12 +56,18 @@ function notify ()
 function cmd_chroot ()
 {
 	output=0
-	connect_bind udev "$CHROOT_LOCATION"/dev -t devtmpfs -o mode=0755,nosuid
-	connect_bind devpts "$CHROOT_LOCATION"/dev/pts -t devpts -o mode=0620,gid=5,nosuid,noexec
-	connect_bind shm "$CHROOT_LOCATION"/dev/shm -t tmpfs -o mode=1777,nosuid,nodev
-	connect_bind proc "$CHROOT_LOCATION"/proc -t proc -o nosuid,noexec,nodev
-	connect_bind sys "$CHROOT_LOCATION"/sys -t sysfs -o nosuid,noexec,nodev,ro
-	connect_bind tmp "$CHROOT_LOCATION"/tmp -t tmpfs -o nosuid,nodev,strictatime,mode=1777
+# 	connect udev "$CHROOT_LOCATION"/dev -t devtmpfs -o mode=0755,nosuid
+	connect_bind /dev "$CHROOT_LOCATION"/dev -t devtmpfs -o mode=0755,nosuid
+# 	connect devpts "$CHROOT_LOCATION"/dev/pts -t devpts -o mode=0620,gid=5,nosuid,noexec
+	connect_bind /dev/pts "$CHROOT_LOCATION"/dev/pts -t devpts -o mode=0620,gid=5,nosuid,noexec
+# 	connect shm "$CHROOT_LOCATION"/dev/shm -t tmpfs -o mode=1777,nosuid,nodev
+	connect_bind /dev/shm "$CHROOT_LOCATION"/dev/shm -t tmpfs -o mode=1777,nosuid,nodev
+# 	connect proc "$CHROOT_LOCATION"/proc -t proc -o nosuid,noexec,nodev
+	connect_bind /proc "$CHROOT_LOCATION"/proc -t proc -o nosuid,noexec,nodev
+# 	connect sys "$CHROOT_LOCATION"/sys -t sysfs -o nosuid,noexec,nodev,ro
+	connect_bind /sys "$CHROOT_LOCATION"/sys -t sysfs -o nosuid,noexec,nodev,ro
+# 	connect tmp "$CHROOT_LOCATION"/tmp -t tmpfs -o nosuid,nodev,strictatime,mode=1777
+	connect_bind /tmp "$CHROOT_LOCATION"/tmp -t tmpfs -o nosuid,nodev,strictatime,mode=1777
 	connect_bind /run "$CHROOT_LOCATION"/run
 	connect_bind /etc/resolv.conf "$CHROOT_LOCATION"/etc/resolv.conf
 	{

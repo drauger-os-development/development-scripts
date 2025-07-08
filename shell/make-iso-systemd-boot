@@ -166,7 +166,7 @@ if [ ! -f /usr/bin/find ]; then
 	needed="$needed findutils"
 fi
 if [ ! -f /usr/bin/arch-chroot ]; then
-	needed="$needed arch-chroot"
+	needed="$needed arch-install-scripts"
 fi
 if [ "$XDG_SESSION_TYPE" != "tty" ] && [ "$MKISO_HEADLESS_MODE" == "" ]; then
 	if ! $(which zenity 1>/dev/null 2>/dev/null); then
