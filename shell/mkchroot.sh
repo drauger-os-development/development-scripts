@@ -445,7 +445,6 @@ to_install_list="$(curl https://download.draugeros.org/build/apt_install.list 2>
 # 	echo -e "\t\tNo packages needed could be installed."
 # 	exit 1
 # fi
-echo "HERE!"
 {
 # 	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get install -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated ${pkg_list[@]} $KERNEL
 	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get install --assume-yes -o Dpkg::Options::="--force-confold" --allow-unauthenticated ${to_install_list} $KERNEL
@@ -493,8 +492,10 @@ root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /h
 # configure user
 mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
 cp -v "$CHROOT_LOCATION/usr/share/applications/edamame.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
-echo "root:toor
-live:toor" | sudo chpasswd --root "$CHROOT_LOCATION"
+# echo "root:toor
+# live:toor" | sudo chpasswd --root "$CHROOT_LOCATION"
+cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" live
+cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" root
 echo -e 'pcm.!default pulse\nctl.!default pulse' | sudo tee "$CHROOT_LOCATION/home/live/.asoundrc"
 cmd_chroot drauger-wallpapers-override
 
