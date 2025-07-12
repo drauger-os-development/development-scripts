@@ -492,8 +492,6 @@ root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /h
 # configure user
 mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
 cp -v "$CHROOT_LOCATION/usr/share/applications/edamame.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
-# echo "root:toor
-# live:toor" | sudo chpasswd --root "$CHROOT_LOCATION"
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" live
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" root
 echo -e 'pcm.!default pulse\nctl.!default pulse' | sudo tee "$CHROOT_LOCATION/home/live/.asoundrc"
@@ -520,6 +518,7 @@ EnableHiDPI=true
 
 [X11]
 EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
+echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 
 # clean up
 DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
