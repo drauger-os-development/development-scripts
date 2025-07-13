@@ -259,6 +259,37 @@ function_makeiso () {
 	}
 	unmount
 	root rm -rfv $CHROOT_LOCATION/var/cache/*
+
+	# Confirm we only have one kernel installed, and that there is an associated initrd.img file
+	images=$(root arch-chroot dpkg -l linux-image* | grep "^ii" | awk '{print $2}')
+	unmount
+	if [ "$images" != "" ]; then
+		versions=$(echo "$images" | sed 's/-/ /g' | awk '{print $3}' | sort -V)
+		latest=$(echo "$versions" | tail -n1)
+		if [ "$versions" != "$latest" ]; then
+			remove=$(echo "$versions" | sort -V | head -n -1)
+			for each in $remove; do
+				root arch-chroot apt-get --assume-yes -y purge linux-image-$each linux-headers-$each
+				unmount
+			done
+		fi
+	else
+		notify "No kernel is installed! Please install a kernel and try again..."
+		exit 1
+	fi
+
+	# We have tackled the kernel issues. Now, for the initrd.img file
+	version=$(root arch-chroot dpkg -l linux-image* | grep "^ii" | awk '{print $2}')
+	unmount
+	if [ "$(echo \\"$version\\" | wc -l)" != "1" ]; then
+		notify "More than one kernel installed! Please remove all but the latest kernel and try again..."
+		exit 1
+	fi
+	if [ ! -f "$CHROOT_LOCATION/boot/initrd.img-$version" ]; then
+		root arch-chroot mkinitramfs -o "/boot/initrd.img-$version"
+	fi
+
+
 	#make work files
 	mkdir -p $BUILD_PREFIX/scratch/EFI/EFI/BOOT $BUILD_PREFIX/image/live
 	mkdir -p $BUILD_PREFIX/scratch/EFI/loader/entries
