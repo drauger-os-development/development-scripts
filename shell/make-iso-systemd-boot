@@ -296,7 +296,7 @@ function_makeiso () {
 	mkdir -p $BUILD_PREFIX/scratch/EFI/loader/entries
 	notify "Making Squashfs"
 	#make Squashfs from chroot
-	root mksquashfs $CHROOT_LOCATION $BUILD_PREFIX/image/live/filesystem.squashfs -comp xz -Xbcj x86 -Xdict-size 8k -e boot && notify "Squashfs Completed"
+	root mksquashfs $CHROOT_LOCATION $BUILD_PREFIX/image/live/filesystem.squashfs -comp xz -Xbcj x86 -Xdict-size 256k -b 1M -e boot && notify "Squashfs Completed"
 	#copy initrd and kernel
 	cp -v $CHROOT_LOCATION/boot/vmlinuz-* $BUILD_PREFIX/image/vmlinuz
 	cp -v $CHROOT_LOCATION/boot/vmlinuz-* $BUILD_PREFIX/scratch/EFI/vmlinuz
