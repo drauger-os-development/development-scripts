@@ -280,7 +280,7 @@ function_makeiso () {
 	fi
 
 	# We have tackled the kernel issues. Now, for the initrd.img file
-	version=$(root arch-chroot "$CHROOT_LOCATION" dpkg -l linux-image* | grep "^ii" | awk '{print $2}')
+	version=$(root arch-chroot "$CHROOT_LOCATION" dpkg -l linux-image* | grep "^ii" | awk '{print $2}' | sed 's/-/ /g' | awk '{print $3}')
 	unmount
 	if [ "$(echo \\"$version\\" | wc -l)" != "1" ]; then
 		notify "More than one kernel installed! Please remove all but the latest kernel and try again..."
