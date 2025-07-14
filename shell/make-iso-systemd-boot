@@ -244,6 +244,7 @@ function_makeiso () {
 	root rm -rfv $CHROOT_LOCATION/home/live/.kde/tmp-*/* $CHROOT_LOCATION/home/live/.kde4/tmp-*/*
 	root find $CHROOT_LOCATION/* -depth -name '__pycache__' -exec rm -rfv {} +
 	root find $CHROOT_LOCATION/*  -depth -name '*.dpkg-old' -exec rm -rfv {} +
+	root find $CHROOT_LOCATION/*  -depth -name '*.deb' -exec rm -rfv {} +
 	{
 		root arch-chroot "$CHROOT_LOCATION" apt-get clean
 	} || {
@@ -286,7 +287,7 @@ function_makeiso () {
 		exit 1
 	fi
 	if [ ! -f "$CHROOT_LOCATION/boot/initrd.img-$version" ]; then
-		root arch-chroot "$CHROOT_LOCATION" mkinitramfs -o "/boot/initrd.img-$version"
+		root arch-chroot "$CHROOT_LOCATION" mkinitramfs -o "/boot/initrd.img-$version" $version
 	fi
 
 
