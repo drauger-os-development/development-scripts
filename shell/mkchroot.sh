@@ -470,7 +470,26 @@ cmd_chroot drauger-wallpapers-override
 if [ ! -d "$CHROOT_LOCATION/etc/sddm.conf.d" ]; then
 	root mkdir -pv "$CHROOT_LOCATION/etc/sddm.conf.d"
 fi
-echo "[General]
+if [ "$CODENAME" == "urgal" ]; then
+	echo "[General]
+GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+DisplayServer=X11
+
+[Autologin]
+User=live
+Session=plasma
+
+[Theme]
+Current=breeze
+CursorTheme=breeze-dark
+
+[Wayland]
+EnableHiDPI=true
+
+[X11]
+EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
+else
+	echo "[General]
 GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
 DisplayServer=X11
 
@@ -487,6 +506,7 @@ EnableHiDPI=true
 
 [X11]
 EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
+fi
 echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 
 # clean up
