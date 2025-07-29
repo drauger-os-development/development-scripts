@@ -509,11 +509,21 @@ EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
 fi
 echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 {
-	cmd_basic_chroot su live -c 'gpg -a "Test"' > /dev/null
+	cmd_basic_chroot su live -c 'gpg -a "Test"'
 } || {
 	echo ""
 }
-
+disconnect "$CHROOT_LOCATION"/etc/resolv.conf
+if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
+	if [ ! -h "$CHROOT_LOCATION"/etc/resolv.conf ]; then
+		root rm -v "$CHROOT_LOCATION"/etc/resolv.conf
+		cd "$CHROOT_LOCATION"
+		root ln -s run/systemd/resolve/stub-resolv.conf etc/resolv.conf
+	fi
+else
+	cd "$CHROOT_LOCATION"
+	root ln -s run/systemd/resolve/stub-resolv.conf etc/resolv.conf
+fi
 # clean up
 DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
 cmd_basic_chroot apt-get clean
