@@ -414,37 +414,6 @@ root rm -v "$CHROOT_LOCATION"/preseed.conf
 
 # install apt package installation list, and kernel
 to_install_list="$(curl https://download.draugeros.org/build/apt_install.list 2>/dev/null)"
-# avail_list=$(cmd_basic_chroot apt-cache search . | awk '{print $1}')
-# pkg_list=()
-# not_installed=()
-# install_list=()
-# for each in ${to_install_list[@]}; do
-# 	if $(echo "$each" | grep -q ":amd64$"); then
-# 		each=$(echo "$each" | sed 's/:/ /g' | awk '{print $1}')
-# 	fi
-# 	install_list+=("$each")
-# done
-# count=0
-# for each in $install_list; do
-# 	will_install=true
-# 	for each1 in $avail_list; do
-# 		if [ "$each" == "$each1" ]; then
-# 			pkg_list+=("$each")
-# 			count=$((count+1))
-# 			echo "Planned Install: $each"
-# 			will_install=false
-# 			break
-# 		fi
-# 	done
-# 	if $will_install; then
-# 		not_installed+=("$each")
-# 	fi
-# done
-# if [ "${#pkg_list[@]}" == "0" ]; then
-# 	echo -e "\n\n\t\t\033[1m### Build of Drauger OS \"$CODENAME\" failed! ###\033[0m"
-# 	echo -e "\t\tNo packages needed could be installed."
-# 	exit 1
-# fi
 {
 # 	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get install -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated ${pkg_list[@]} $KERNEL
 	DEBIAN_FRONTEND=noninteractive cmd_chroot apt-get install --assume-yes -o Dpkg::Options::="--force-confold" --allow-unauthenticated ${to_install_list} $KERNEL
@@ -501,7 +470,26 @@ cmd_chroot drauger-wallpapers-override
 if [ ! -d "$CHROOT_LOCATION/etc/sddm.conf.d" ]; then
 	root mkdir -pv "$CHROOT_LOCATION/etc/sddm.conf.d"
 fi
-echo "[General]
+if [ "$CODENAME" == "urgal" ]; then
+	echo "[General]
+GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+DisplayServer=X11
+
+[Autologin]
+User=live
+Session=plasma
+
+[Theme]
+Current=breeze
+CursorTheme=breeze-dark
+
+[Wayland]
+EnableHiDPI=true
+
+[X11]
+EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
+else
+	echo "[General]
 GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
 DisplayServer=X11
 
@@ -518,6 +506,7 @@ EnableHiDPI=true
 
 [X11]
 EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
+fi
 echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 {
 	cmd_basic_chroot su live -c 'gpg -a "Test"' > /dev/null
