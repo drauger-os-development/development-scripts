@@ -352,8 +352,10 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	mkdir -p $BUILD_PREFIX/image/repo
 	base="$PWD"
 	root chroot $CHROOT_LOCATION apt-get update
-	deps="$KERNEL systemd-boot-manager systemd-boot efibootmgr"
+	deps="systemd-boot-manager systemd-boot efibootmgr"
 	all_installed=$(root chroot "$CHROOT_LOCATION" dpkg -l)
+	all=$(root chroot "$CHROOT_LOCATION" apt-cache depends "$KERNEL")
+	all=$(echo "$all" | grep 'Depends:' | awk '{print $2}' | sed -z 's/\n/ /g')
 	for each in $deps; do
 		test=$(root chroot "$CHROOT_LOCATION" apt-cache depends "$each")
 		test=$(echo "$test" | grep 'Depends:' | awk '{print $2}')
@@ -361,15 +363,11 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 			if $(echo "$all_installed" | grep "$each" | grep -q "^ii"); then
 				echo "" > /dev/null
 			else
-				if [ "$all" == "" ]; then
-					all="$each"
-				else
-					all="$all $each"
-				fi
+				all="$all $each"
 			fi
 		done
 	done
-	deps="$deps $all"
+	deps="$KERNEL $deps $all"
 	cd $BUILD_PREFIX/image/repo
 	root chroot $CHROOT_LOCATION apt-get download $deps
 	root chroot $CHROOT_LOCATION apt-get clean

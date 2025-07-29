@@ -519,6 +519,11 @@ EnableHiDPI=true
 [X11]
 EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
 echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
+{
+	cmd_basic_chroot su live -c 'gpg -a "Test"' > /dev/null
+} || {
+	echo ""
+}
 
 # clean up
 DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
