@@ -387,7 +387,7 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	notify "Setting up local deb repo"
 	mkdir -p $BUILD_PREFIX/image/repo
 	base="$PWD"
-	root chroot $CHROOT_LOCATION apt-get update
+	root arch-chroot $CHROOT_LOCATION apt-get update
 	deps="systemd-boot-manager systemd-boot efibootmgr"
 	all_installed=$(root chroot "$CHROOT_LOCATION" dpkg -l)
 	all=$(root chroot "$CHROOT_LOCATION" apt-cache depends "$KERNEL")
@@ -405,7 +405,7 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	done
 	deps="$KERNEL $deps $all"
 	cd $BUILD_PREFIX/image/repo
-	root chroot $CHROOT_LOCATION apt-get download $deps
+	root arch-chroot $CHROOT_LOCATION apt-get download $deps
 	root chroot $CHROOT_LOCATION apt-get clean
 	root mv -v $CHROOT_LOCATION/*.deb .
 	cd "$base"
