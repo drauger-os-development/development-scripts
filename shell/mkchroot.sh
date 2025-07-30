@@ -69,6 +69,7 @@ function cmd_chroot ()
 # 	connect tmp "$CHROOT_LOCATION"/tmp -t tmpfs -o nosuid,nodev,strictatime,mode=1777
 	connect_bind /tmp "$CHROOT_LOCATION"/tmp #-t tmpfs -o nosuid,nodev,strictatime,mode=1777
 	connect_bind /run "$CHROOT_LOCATION"/run
+	root mv "$CHROOT_LOCATION"/etc/resolv.conf "$CHROOT_LOCATION"/etc/resolv.conf.bak
 	connect_bind /etc/resolv.conf "$CHROOT_LOCATION"/etc/resolv.conf
 	{
 		cmd_basic_chroot $@
@@ -90,6 +91,7 @@ function full_disconnect ()
 	disconnect "$CHROOT_LOCATION"/tmp
 	disconnect "$CHROOT_LOCATION"/run
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
+	root mv "$CHROOT_LOCATION"/etc/resolv.conf.bak "$CHROOT_LOCATION"/etc/resolv.conf
 }
 
 
@@ -511,9 +513,20 @@ echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 {
 	cmd_basic_chroot su live -c 'gpg -a "Test"'
 } || {
-	echo ""
+	:
 }
-disconnect "$CHROOT_LOCATION"/etc/resolv.conf
+{
+	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
+} || {
+	:
+}
+if [ -f "$CHROOT_LOCATION"/etc/resolv.conf.bak ]; then
+	{
+		root mv "$CHROOT_LOCATION"/etc/resolv.conf.bak "$CHROOT_LOCATION"/etc/resolv.conf
+	} || {
+		:
+	}
+fi
 if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
 	if [ ! -h "$CHROOT_LOCATION"/etc/resolv.conf ]; then
 		root rm -v "$CHROOT_LOCATION"/etc/resolv.conf
