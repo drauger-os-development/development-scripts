@@ -517,7 +517,7 @@ EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
 fi
 echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 {
-	cmd_basic_chroot su live -c 'gpg -a "Test"'
+	cmd_basic_chroot sudo --user=live gpg --batch --quiet --list-keys
 } || {
 	:
 }
