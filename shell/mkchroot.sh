@@ -69,7 +69,7 @@ function cmd_chroot ()
 # 	connect tmp "$CHROOT_LOCATION"/tmp -t tmpfs -o nosuid,nodev,strictatime,mode=1777
 	connect_bind /tmp "$CHROOT_LOCATION"/tmp #-t tmpfs -o nosuid,nodev,strictatime,mode=1777
 	connect_bind /run "$CHROOT_LOCATION"/run
-	root mv "$CHROOT_LOCATION"/etc/resolv.conf "$CHROOT_LOCATION"/etc/resolv.conf.bak
+	root cp "$CHROOT_LOCATION"/etc/resolv.conf "$CHROOT_LOCATION"/etc/resolv.conf.bak
 	connect_bind /etc/resolv.conf "$CHROOT_LOCATION"/etc/resolv.conf
 	{
 		cmd_basic_chroot $@
@@ -91,7 +91,13 @@ function full_disconnect ()
 	disconnect "$CHROOT_LOCATION"/tmp
 	disconnect "$CHROOT_LOCATION"/run
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
-	root mv "$CHROOT_LOCATION"/etc/resolv.conf.bak "$CHROOT_LOCATION"/etc/resolv.conf
+	if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
+		if [ "$(cat $CHROOT_LOCATION/etc/resolv.conf.bak)" != "$(cat $CHROOT_LOCATION/etc/resolv.conf)" ]; then
+			root mv "$CHROOT_LOCATION"/etc/resolv.conf.bak "$CHROOT_LOCATION"/etc/resolv.conf
+		else
+			root rm "$CHROOT_LOCATION"/etc/resolv.conf.bak
+		fi
+	fi
 }
 
 
