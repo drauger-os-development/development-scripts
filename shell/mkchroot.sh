@@ -536,12 +536,12 @@ fi
 if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
 	if [ ! -h "$CHROOT_LOCATION"/etc/resolv.conf ]; then
 		root rm -v "$CHROOT_LOCATION"/etc/resolv.conf
-		cd "$CHROOT_LOCATION"
-		root ln -s run/systemd/resolve/stub-resolv.conf etc/resolv.conf
+		cd "$CHROOT_LOCATION"/etc
+		root ln -s ../run/systemd/resolve/stub-resolv.conf resolv.conf
 	fi
 else
-	cd "$CHROOT_LOCATION"
-	root ln -s run/systemd/resolve/stub-resolv.conf etc/resolv.conf
+	cd "$CHROOT_LOCATION"/etc
+	root ln -s ../run/systemd/resolve/stub-resolv.conf resolv.conf
 fi
 # clean up
 DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
