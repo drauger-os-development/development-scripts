@@ -389,17 +389,21 @@ options boot=live ro rd.luks=0 rd.md=0 rd.live.overlay.overlayfs=1 quiet splash 
 	base="$PWD"
 	root arch-chroot $CHROOT_LOCATION apt-get update
 	deps="systemd-boot-manager systemd-boot efibootmgr"
-	all_installed=$(root chroot "$CHROOT_LOCATION" dpkg -l)
+	all_installed=$(root chroot "$CHROOT_LOCATION" dpkg -l | grep "^ii" | awk '{print $2}')
 	all=$(root chroot "$CHROOT_LOCATION" apt-cache depends "$KERNEL")
 	all=$(echo "$all" | grep 'Depends:' | awk '{print $2}' | sed -z 's/\n/ /g')
 	for each in $deps; do
 		test=$(root chroot "$CHROOT_LOCATION" apt-cache depends "$each")
 		test=$(echo "$test" | grep 'Depends:' | awk '{print $2}')
 		for each1 in $test; do
-			if $(echo "$all_installed" | grep "$each" | grep -q "^ii"); then
-				echo "" > /dev/null
+			if $(echo "$all_installed" | grep -q "^${each1}$"); then
+				:
 			else
-				all="$all $each"
+				if $(echo "$all" | grep -vq " $each1 "); then
+					if [[ "${each1:0:1}" =~ ^[a-z0-9]+$ ]]; then
+						all="$all $each1"
+					fi
+				fi
 			fi
 		done
 	done
