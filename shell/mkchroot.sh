@@ -521,6 +521,12 @@ echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 } || {
 	:
 }
+cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
+if [ ! -d "$CHROOT_LOCATION"/home/live/.config ]; then
+	mkdir "$CHROOT_LOCATION"/home/live/.config
+	chown 1000:1000 "$CHROOT_LOCATION"/home/live/.config
+	chmod 755 "$CHROOT_LOCATION"/home/live/.config
+fi
 {
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
 } || {
@@ -542,12 +548,6 @@ if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
 else
 	cd "$CHROOT_LOCATION"/etc
 	root ln -s ../run/systemd/resolve/stub-resolv.conf resolv.conf
-fi
-cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
-if [ ! -d "$CHROOT_LOCATION"/home/live/.config ]; then
-	mkdir "$CHROOT_LOCATION"/home/live/.config
-	chown 1000:1000 "$CHROOT_LOCATION"/home/live/.config
-	chmod 755 "$CHROOT_LOCATION"/home/live/.config
 fi
 cmd_basic_chroot tar -x -f config.tar.xz -C /home/live/.config
 
