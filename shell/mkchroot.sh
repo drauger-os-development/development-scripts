@@ -469,6 +469,8 @@ root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /h
 # configure user
 mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
 cp -v "$CHROOT_LOCATION/usr/share/applications/edamame.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
+root chmod +x "$CHROOT_LOCATION/home/live/Desktop/edamame.desktop"
+root chown root:root "$CHROOT_LOCATION/home/live/Desktop/edamame.desktop"
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" live
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" root
 echo -e 'pcm.!default pulse\nctl.!default pulse' | sudo tee "$CHROOT_LOCATION/home/live/.asoundrc"
