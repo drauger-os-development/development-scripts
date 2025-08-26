@@ -523,12 +523,12 @@ echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 } || {
 	:
 }
-#cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
-#if [ ! -d "$CHROOT_LOCATION"/home/live/.config ]; then
-#	mkdir "$CHROOT_LOCATION"/home/live/.config
-#	chown 1000:1000 "$CHROOT_LOCATION"/home/live/.config
-#	chmod 755 "$CHROOT_LOCATION"/home/live/.config
-#fi
+cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
+if [ ! -d "$CHROOT_LOCATION"/home/live/.config ]; then
+	mkdir "$CHROOT_LOCATION"/home/live/.config
+	chown 1000:1000 "$CHROOT_LOCATION"/home/live/.config
+	chmod 755 "$CHROOT_LOCATION"/home/live/.config
+fi
 {
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
 } || {
@@ -551,13 +551,13 @@ else
 	cd "$CHROOT_LOCATION"/etc
 	root ln -s ../run/systemd/resolve/stub-resolv.conf resolv.conf
 fi
-# cmd_basic_chroot tar -x -f config.tar.xz -C /home/live/.config
+cmd_basic_chroot tar -x -f config.tar.xz -C /home/live/.config
 
 
 # clean up
 DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
 cmd_basic_chroot apt-get clean
-# cmd_basic_chroot rm config.tar.xz
+cmd_basic_chroot rm config.tar.xz
 
 # notify user of completed chroot
 echo -e "\n\n\t\t\033[1m### Build of Drauger OS \"$CODENAME\" completed! ###\033[0m"
