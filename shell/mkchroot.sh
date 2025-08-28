@@ -538,25 +538,25 @@ fi
 } || {
 	:
 }
-# if [ -f "$CHROOT_LOCATION"/etc/resolv.conf.bak ]; then
-# 	{
-# 		root mv -v "$CHROOT_LOCATION"/etc/resolv.conf.bak "$CHROOT_LOCATION"/etc/resolv.conf
-# 	} || {
-# 		:
-# 	}
-# fi
-# if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
-# 	if [ ! -h "$CHROOT_LOCATION"/etc/resolv.conf ]; then
-# 		root rm -v "$CHROOT_LOCATION"/etc/resolv.conf
-# 		cd "$CHROOT_LOCATION"/etc
-# 		root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
-# 	fi
-# else
-# 	cd "$CHROOT_LOCATION"/etc
-# 	root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
-# fi
-cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/.config
-root cp -vr /home/live/.config/kdedefaults/* /home/live/.config/
+if [ -f "$CHROOT_LOCATION"/etc/resolv.conf.bak ]; then
+	{
+		root mv -v "$CHROOT_LOCATION"/etc/resolv.conf.bak "$CHROOT_LOCATION"/etc/resolv.conf
+	} || {
+		:
+	}
+fi
+if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
+	if [ ! -h "$CHROOT_LOCATION"/etc/resolv.conf ]; then
+		root rm -v "$CHROOT_LOCATION"/etc/resolv.conf
+		cd "$CHROOT_LOCATION"/etc
+		root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
+	fi
+else
+	cd "$CHROOT_LOCATION"/etc
+	root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
+fi
+cmd_basic_chroot tar -xvf config.tar.xz -C "$CHROOT_LOCATION"/home/live/.config
+root cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
 
 
 # clean up
