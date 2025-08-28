@@ -474,7 +474,11 @@ root chown root:root "$CHROOT_LOCATION/home/live/Desktop/edamame.desktop"
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" live
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" root
 echo -e 'pcm.!default pulse\nctl.!default pulse' | sudo tee "$CHROOT_LOCATION/home/live/.asoundrc"
-cmd_chroot drauger-wallpapers-override
+{
+	cmd_chroot drauger-wallpapers-override
+} || {
+	echo "Could not run drauger-wallpapers-override. Missing executable?"
+}
 
 # other settings
 if [ ! -d "$CHROOT_LOCATION/etc/sddm.conf.d" ]; then
@@ -552,6 +556,7 @@ else
 	root ln -s ../run/systemd/resolve/stub-resolv.conf resolv.conf
 fi
 cmd_basic_chroot tar -x -f config.tar.xz -C /home/live/.config
+root cp -vr /home/live/.config/kdedefaults/* /home/live/.config/
 
 
 # clean up
