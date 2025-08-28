@@ -527,6 +527,16 @@ echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 } || {
 	:
 }
+
+cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
+if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
+	mkdir -vp "$CHROOT_LOCATION"/home/live/.config
+	chown -v 1000:1000 "$CHROOT_LOCATION"/home/live/.config
+	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
+fi
+cmd_basic_chroot tar -xvf config.tar.xz -C "$CHROOT_LOCATION"/home/live/.config
+root cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
+
 {
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
 } || {
@@ -551,14 +561,6 @@ else
 	root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
 	cd ../../..
 fi
-cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
-if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
-	mkdir -vp "$CHROOT_LOCATION"/home/live/.config
-	chown -v 1000:1000 "$CHROOT_LOCATION"/home/live/.config
-	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
-fi
-cmd_basic_chroot tar -xvf config.tar.xz -C "$CHROOT_LOCATION"/home/live/.config
-root cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
 
 
 # clean up
