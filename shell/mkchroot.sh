@@ -528,6 +528,7 @@ echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 	:
 }
 
+cd "$CHROOT_LOCATION"
 cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
 if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
 	mkdir -vp "$CHROOT_LOCATION"/home/live/.config
@@ -554,18 +555,16 @@ if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
 		root rm -v "$CHROOT_LOCATION"/etc/resolv.conf
 		cd "$CHROOT_LOCATION"/etc
 		root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
-		cd "$CHROOT_PREFIX"
 	fi
 else
 	cd "$CHROOT_LOCATION"/etc
 	root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
-	cd "$CHROOT_PREFIX"
-
+fi
 
 # clean up
 DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
 cmd_basic_chroot apt-get clean
-cmd_basic_chroot rm config.tar.xz
+root rm -v "$CHROOT_LOCATION"/config.tar.xz
 
 # notify user of completed chroot
 echo -e "\n\n\t\t\033[1m### Build of Drauger OS \"$CODENAME\" completed! ###\033[0m"
@@ -574,6 +573,6 @@ notify "### Build of Drauger OS \"$CODENAME\" completed! ###"
 if [ "${#not_installed[@]}" != "0" ]; then
         echo -e "\n\n\t\t\033[1m### Some packages could not be installed. ###\033[0m"
         for each in ${not_installed[@]}; do
-		echo " - $each"
-	done
+			echo " - $each"
+		done
 fi
