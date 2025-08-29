@@ -534,7 +534,7 @@ if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
 	chown -v 1000:1000 "$CHROOT_LOCATION"/home/live/.config
 	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
 fi
-cmd_basic_chroot tar -xvf config.tar.xz -C "$CHROOT_LOCATION"/home/live/.config
+cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/.config/
 root cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
 
 {
@@ -554,13 +554,12 @@ if [ -f "$CHROOT_LOCATION"/etc/resolv.conf ]; then
 		root rm -v "$CHROOT_LOCATION"/etc/resolv.conf
 		cd "$CHROOT_LOCATION"/etc
 		root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
-		cd ../../..
+		cd "$CHROOT_PREFIX"
 	fi
 else
 	cd "$CHROOT_LOCATION"/etc
 	root ln -vs ../run/systemd/resolve/stub-resolv.conf resolv.conf
-	cd ../../..
-fi
+	cd "$CHROOT_PREFIX"
 
 
 # clean up
