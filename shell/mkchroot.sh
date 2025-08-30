@@ -464,7 +464,8 @@ cmd_chroot mkinitramfs -o "/boot/initrd.img-$kernel" "$kernel"
 # create user
 cmd_chroot groupadd pulse
 cmd_chroot groupadd lpadmin
-root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home --groups adm,cdrom,sudo,audio,dip,video,plugdev,pulse,lpadmin live
+root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home --groups adm,cdrom,sudo,audio,dip,video,plugdev,pulse,lpadmin -u 1000 live
+root groupmod -R "$CHROOT_LOCATION" -g 1000 live
 
 # configure user
 mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
@@ -536,7 +537,7 @@ if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
 	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
 fi
 cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/.config/
-cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
+# cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
 
 {
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
