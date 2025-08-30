@@ -391,14 +391,14 @@ root chown root:root "$CHROOT_LOCATION"
 notify "Bootstraping..."
 root debootstrap --variant=buildd --arch "$ARCH" "$UBUNTU_CODENAME" "$CHROOT_LOCATION" http://archive.ubuntu.com/ubuntu/
 
-# Make our user now so we can reserve the UID/GID
-# create user
-root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home -u 1000 live
-{
-	root groupmod -R "$CHROOT_LOCATION" -g 1000 live
-} || {
-	:
-}
+# # Make our user now so we can reserve the UID/GID
+# # create user
+# root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home -u 1000 live
+# {
+# 	root groupmod -R "$CHROOT_LOCATION" -g 1000 live
+# } || {
+# 	:
+# }
 
 # install ca-certificates for HTTPS repos, gnupg for repo signing, flatpak for flatpak apps
 cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y ca-certificates gnupg wget
@@ -471,13 +471,19 @@ kernel=$(ls "$CHROOT_LOCATION/boot" | grep "-" | sed 's/-/ /g' | awk '{print $2}
 cmd_chroot mkinitramfs -o "/boot/initrd.img-$kernel" "$kernel"
 
 # configure user
-root groupadd -R "$CHROOT_LOCATION" pulse
-root groupadd -R "$CHROOT_LOCATION" lpadmin
-root usermod -R "$CHROOT_LOCATION" -aG adm,cdrom,sudo,audio,dip,video,plugdev,pulse,lpadmin live
-mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
-cp -v "$CHROOT_LOCATION/usr/share/applications/edamame.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
+# root groupadd -R "$CHROOT_LOCATION" pulse
+# root groupadd -R "$CHROOT_LOCATION" lpadmin
+# create user
+root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home -u 1000 --groups adm,cdrom,sudo,audio,dip,video,plugdev live
+{
+	root groupmod -R "$CHROOT_LOCATION" -g 1000 live
+} || {
+	:
+}
+# root usermod -R "$CHROOT_LOCATION" -aG adm,cdrom,sudo,audio,dip,video,plugdev live
+mkdir -vp "$CHROOT_LOCATION/home/live/Desktop" "$CHROOT_LOCATION/home/live/Downloads" "$CHROOT_LOCATION/home/live/Music" "$CHROOT_LOCATION/home/live/Documents" "$CHROOT_LOCATION/home/live/Videos" "$CHROOT_LOCATION/home/live/Pictures"
+root cp -v "$CHROOT_LOCATION/usr/share/applications/edamame.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
 root chmod +x "$CHROOT_LOCATION/home/live/Desktop/edamame.desktop"
-root chown root:root "$CHROOT_LOCATION/home/live/Desktop/edamame.desktop"
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" live
 cmd_chroot usermod -p "$(echo 'toor' | openssl passwd -1 -stdin)" root
 echo -e 'pcm.!default pulse\nctl.!default pulse' | sudo tee "$CHROOT_LOCATION/home/live/.asoundrc"
