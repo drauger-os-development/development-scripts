@@ -391,6 +391,15 @@ root chown root:root "$CHROOT_LOCATION"
 notify "Bootstraping..."
 root debootstrap --variant=buildd --arch "$ARCH" "$UBUNTU_CODENAME" "$CHROOT_LOCATION" http://archive.ubuntu.com/ubuntu/
 
+# Make our user now so we can reserve the UID/GID
+# create user
+root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home -u 1000 live
+{
+	root groupmod -R "$CHROOT_LOCATION" -g 1000 live
+} || {
+	:
+}
+
 # install ca-certificates for HTTPS repos, gnupg for repo signing, flatpak for flatpak apps
 cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y ca-certificates gnupg wget
 
@@ -461,17 +470,10 @@ cmd_basic_chroot update-alternatives --set default.plymouth /usr/share/plymouth/
 kernel=$(ls "$CHROOT_LOCATION/boot" | grep "-" | sed 's/-/ /g' | awk '{print $2}' | uniq)
 cmd_chroot mkinitramfs -o "/boot/initrd.img-$kernel" "$kernel"
 
-# create user
-cmd_chroot groupadd pulse
-cmd_chroot groupadd lpadmin
-root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home --groups adm,cdrom,sudo,audio,dip,video,plugdev,pulse,lpadmin -u 1000 live
-{
-	root groupmod -R "$CHROOT_LOCATION" -g 1000 live
-} || {
-	:
-}
-
 # configure user
+root groupadd -R "$CHROOT_LOCATION" pulse
+root groupadd -R "$CHROOT_LOCATION" lpadmin
+root usermod -R "$CHROOT_LOCATION" -aG adm,cdrom,sudo,audio,dip,video,plugdev,pulse,lpadmin live
 mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
 cp -v "$CHROOT_LOCATION/usr/share/applications/edamame.desktop" "$CHROOT_LOCATION/home/live/Desktop/"
 root chmod +x "$CHROOT_LOCATION/home/live/Desktop/edamame.desktop"
@@ -533,15 +535,15 @@ echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 	:
 }
 
-# cd "$CHROOT_LOCATION"
-# cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
-# if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
-# 	mkdir -vp "$CHROOT_LOCATION"/home/live/.config
-# 	chown -v 1000:1000 "$CHROOT_LOCATION"/home/live/.config
-# 	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
-# fi
-# cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/.config/
-# cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
+cd "$CHROOT_LOCATION"
+cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
+if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
+	mkdir -vp "$CHROOT_LOCATION"/home/live/.config
+	chown -v 1000:1000 "$CHROOT_LOCATION"/home/live/.config
+	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
+fi
+cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/.config/
+cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
 
 {
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
