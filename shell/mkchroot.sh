@@ -465,7 +465,11 @@ cmd_chroot mkinitramfs -o "/boot/initrd.img-$kernel" "$kernel"
 cmd_chroot groupadd pulse
 cmd_chroot groupadd lpadmin
 root useradd -R "$CHROOT_LOCATION" --create-home --shell /bin/bash --base-dir /home --groups adm,cdrom,sudo,audio,dip,video,plugdev,pulse,lpadmin -u 1000 live
-root groupmod -R "$CHROOT_LOCATION" -g 1000 live
+{
+	root groupmod -R "$CHROOT_LOCATION" -g 1000 live
+} || {
+	:
+}
 
 # configure user
 mkdir -v "$CHROOT_LOCATION/home/live/Desktop"
