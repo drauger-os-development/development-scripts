@@ -542,8 +542,8 @@ if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
 	chown -v 1000:1000 "$CHROOT_LOCATION"/home/live/.config
 	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
 fi
-cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/.config/
-cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
+cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/
+# cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
 
 {
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
