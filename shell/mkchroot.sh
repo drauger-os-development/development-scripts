@@ -541,7 +541,6 @@ echo "drauger-live" | sudo tee "$CHROOT_LOCATION/etc/hostname"
 	:
 }
 
-cd "$CHROOT_LOCATION"
 cmd_basic_chroot wget https://download.draugeros.org/build/config.tar.xz
 if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
 	mkdir -vp "$CHROOT_LOCATION"/home/live/.config
@@ -549,7 +548,8 @@ if [[ ! -d "$CHROOT_LOCATION"/home/live/.config ]]; then
 	chmod -v 755 "$CHROOT_LOCATION"/home/live/.config
 fi
 cmd_basic_chroot tar -xvf config.tar.xz -C /home/live/
-# cp -vr "$CHROOT_LOCATION"/home/live/.config/kdedefaults/* "$CHROOT_LOCATION"/home/live/.config/
+root cp -vr "$CHROOT_LOCATION"/home/live/.config/ "$CHROOT_LOCATION"/root/
+root rm -v "$CHROOT_LOCATION"/config.tar.xz
 
 {
 	disconnect "$CHROOT_LOCATION"/etc/resolv.conf
@@ -577,7 +577,6 @@ fi
 # clean up
 DEBIAN_FRONTEND=noninteractive cmd_basic_chroot apt-get autopurge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated
 cmd_basic_chroot apt-get clean
-# root rm -v "$CHROOT_LOCATION"/config.tar.xz
 
 # notify user of completed chroot
 echo -e "\n\n\t\t\033[1m### Build of Drauger OS \"$CODENAME\" completed! ###\033[0m"
