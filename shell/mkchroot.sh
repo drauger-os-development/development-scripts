@@ -37,6 +37,8 @@ function ask ()
 				output="$MKCHROOT_STORAGE_FOLDER"
 			elif $(echo "$1" | grep -q "kernel"); then
 				output="$MKCHROOT_KERNEL"
+			elif $(echo "$1" | grep -q "coreutils"); then
+				output="$MKCHROOT_COREUTILS"
 			fi
 		fi
         builtin echo "$output"
@@ -262,13 +264,17 @@ else
         CHROOT_PREFIX=${CHROOT_PREFIX:-"$HOME"}
         KERNEL=$(ask "What kernel would you like to use? Default is linux-drauger.")
         KERNEL=${KERNEL:-"linux-drauger"}
+        COREUTILS=$(ask "Would you rather have the Rust coreutils, or the GNU coreutils?")
+        COREUTILS=${COREUTILS:-"gnu"}
         if [ "$MKCHROOT_HEADLESS_MODE" == "" ]; then
 			builtin echo -e "# mkchroot config
 # Don't end file paths with forward-slashes
 # Chroot location
 CHROOT_PREFIX=$CHROOT_PREFIX
 # Kernel to use
-KERNEL=$KERNEL" > $HOME/.config/drauger/mkchroot.conf
+KERNEL=$KERNEL
+# Coreutils
+COREUTILS=$COREUTILS" > $HOME/.config/drauger/mkchroot.conf
 		fi
 fi
 
@@ -401,6 +407,38 @@ root debootstrap --variant=buildd --arch "$ARCH" "$UBUNTU_CODENAME" "$CHROOT_LOC
 # }
 
 # install ca-certificates for HTTPS repos, gnupg for repo signing, flatpak for flatpak apps
+
+# Handle coreutils now
+cmd_chroot apt-get update
+pkgs=$(cmd_basic_chroot dpkg -l)
+if [[ "$COREUTILS" == "gnu" ]]; then
+	{
+		cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-gnu
+	} || {
+		cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils
+	}
+	if $(echo "$pkgs" | grep -q "^ii  rust-coreutils")
+		{
+			cmd_chroot apt-get purge -assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils coreutils-from-uutils
+		} || {
+			cmd_chroot apt-get purge -assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils
+		}
+	fi
+else
+	{
+		cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-uutils
+	} || {
+		cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y rust-coreutils
+	}
+	if $(echo "$pkgs" | grep -q "^ii  coreutils") || $(echo "$pkgs" | grep -q "^ii  gnu-coreutils")
+		{
+			cmd_chroot apt-get purge -assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated gnu-coreutils coreutils-from-gnu
+		} || {
+			cmd_chroot apt-get purge -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils
+		}
+	fi
+fi
+
 cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y ca-certificates gnupg wget
 
 # set sources
