@@ -410,14 +410,14 @@ root debootstrap --variant=buildd --arch "$ARCH" "$UBUNTU_CODENAME" "$CHROOT_LOC
 
 # Handle coreutils now
 cmd_chroot apt-get update
-pkgs=$(cmd_basic_chroot dpkg -l)
 if [[ "$COREUTILS" == "gnu" ]]; then
 	{
 		cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-gnu
 	} || {
 		cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils
 	}
-	if $(echo "$pkgs" | grep -q "^ii  rust-coreutils")
+	pkgs=$(cmd_basic_chroot dpkg -l)
+	if $(echo "$pkgs" | grep -q "^ii  rust-coreutils"); then
 		{
 			cmd_chroot apt-get purge -assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils coreutils-from-uutils
 		} || {
@@ -430,7 +430,8 @@ else
 	} || {
 		cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y rust-coreutils
 	}
-	if $(echo "$pkgs" | grep -q "^ii  coreutils") || $(echo "$pkgs" | grep -q "^ii  gnu-coreutils")
+	pkgs=$(cmd_basic_chroot dpkg -l)
+	if $(echo "$pkgs" | grep -q "^ii  coreutils") || $(echo "$pkgs" | grep -q "^ii  gnu-coreutils"); then
 		{
 			cmd_chroot apt-get purge -assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated gnu-coreutils coreutils-from-gnu
 		} || {
