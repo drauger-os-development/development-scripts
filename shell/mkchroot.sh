@@ -410,40 +410,40 @@ root debootstrap --variant=buildd --arch "$ARCH" "$UBUNTU_CODENAME" "$CHROOT_LOC
 
 # Handle coreutils now
 cmd_chroot apt-get update
-# pkgs=$(cmd_basic_chroot dpkg -l)
-# if [[ "$COREUTILS" == "gnu" ]]; then
-# 	if $(echo "$pkgs" | grep -q "^ii  rust-coreutils "); then
-# 		{
-# 			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils coreutils-from-uutils
-# 		} || {
-# 			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils
-# 		}
-# 	fi
-# 	pkgs=$(cmd_basic_chroot dpkg -l)
-# 	if $(echo "$pkgs" | grep -qv "^ii coreutils "); then
-# 		{
-# 			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-gnu
-# 		} || {
-# 			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils
-# 		}
-# 	fi
-# else
-# 	if $(echo "$pkgs" | grep -q "^ii  coreutils ") || $(echo "$pkgs" | grep -q "^ii  gnu-coreutils"); then
-# 		{
-# 			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated gnu-coreutils coreutils-from-gnu
-# 		} || {
-# 			cmd_chroot apt-get purge -o Dpkg::Options::="--force-confold" --assume-yes --allow-remove-essential -y coreutils
-# 		}
-# 	fi
-# 	pkgs=$(cmd_basic_chroot dpkg -l)
-# 	if $(echo "$pkgs" | grep -qv "^ii rust-coreutils "); then
-# 		{
-# 			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-uutils
-# 		} || {
-# 			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y rust-coreutils
-# 		}
-# 	fi
-# fi
+pkgs=$(cmd_basic_chroot dpkg -l)
+if [[ "$COREUTILS" == "gnu" ]]; then
+	if $(echo "$pkgs" | grep -q "^ii  rust-coreutils "); then
+		{
+			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils coreutils-from-uutils
+		} || {
+			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils
+		}
+	fi
+	pkgs=$(cmd_basic_chroot dpkg -l)
+	if $(echo "$pkgs" | grep -qv "^ii coreutils "); then
+		{
+			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-gnu
+		} || {
+			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils
+		}
+	fi
+else
+	if $(echo "$pkgs" | grep -q "^ii  coreutils ") || $(echo "$pkgs" | grep -q "^ii  gnu-coreutils"); then
+		{
+			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated gnu-coreutils coreutils-from-gnu
+		} || {
+			cmd_chroot apt-get purge -o Dpkg::Options::="--force-confold" --assume-yes --allow-remove-essential -y coreutils
+		}
+	fi
+	pkgs=$(cmd_basic_chroot dpkg -l)
+	if $(echo "$pkgs" | grep -qv "^ii rust-coreutils "); then
+		{
+			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-uutils
+		} || {
+			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y rust-coreutils
+		}
+	fi
+fi
 
 cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y ca-certificates gnupg wget
 
