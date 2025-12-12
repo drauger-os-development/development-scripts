@@ -414,9 +414,9 @@ pkgs=$(cmd_basic_chroot dpkg -l)
 if [[ "$COREUTILS" == "gnu" ]]; then
 	if $(echo "$pkgs" | grep -q "^ii  rust-coreutils "); then
 		{
-			cmd_chroot apt-get purge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils coreutils-from-uutils
+			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils coreutils-from-uutils
 		} || {
-			cmd_chroot apt-get purge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils
+			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated rust-coreutils
 		}
 	fi
 	pkgs=$(cmd_basic_chroot dpkg -l)
@@ -430,9 +430,9 @@ if [[ "$COREUTILS" == "gnu" ]]; then
 else
 	if $(echo "$pkgs" | grep -q "^ii  coreutils ") || $(echo "$pkgs" | grep -q "^ii  gnu-coreutils"); then
 		{
-			cmd_chroot apt-get purge --assume-yes -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated gnu-coreutils coreutils-from-gnu
+			cmd_chroot apt-get purge --assume-yes --allow-remove-essential -y -o Dpkg::Options::="--force-confold" --allow-unauthenticated gnu-coreutils coreutils-from-gnu
 		} || {
-			cmd_chroot apt-get purge -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils
+			cmd_chroot apt-get purge -o Dpkg::Options::="--force-confold" --assume-yes --allow-remove-essential -y coreutils
 		}
 	fi
 	pkgs=$(cmd_basic_chroot dpkg -l)
