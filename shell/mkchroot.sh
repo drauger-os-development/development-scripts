@@ -422,7 +422,7 @@ if [[ "$COREUTILS" == "gnu" ]]; then
 	pkgs=$(cmd_basic_chroot dpkg -l)
 	if $(echo "$pkgs" | grep -qv "^ii coreutils "); then
 		{
-			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-gnu
+			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-gnu gnu-coreutils
 		} || {
 			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils
 		}
@@ -438,7 +438,7 @@ else
 	pkgs=$(cmd_basic_chroot dpkg -l)
 	if $(echo "$pkgs" | grep -qv "^ii rust-coreutils "); then
 		{
-			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-uutils
+			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y coreutils-from-uutils rust-coreutils
 		} || {
 			cmd_chroot apt-get install -o Dpkg::Options::="--force-confold" --assume-yes -y rust-coreutils
 		}
@@ -542,9 +542,8 @@ if [ ! -d "$CHROOT_LOCATION/etc/sddm.conf.d" ]; then
 	root mkdir -pv "$CHROOT_LOCATION/etc/sddm.conf.d"
 fi
 if [ "$CODENAME" == "urgal" ]; then
-	echo "[General]
-GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
-DisplayServer=X11
+	echo "GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+DisplayServer=wayland
 
 [Autologin]
 User=live
@@ -556,9 +555,13 @@ CursorTheme=breeze-dark
 
 [Wayland]
 EnableHiDPI=true
+CompositorCommand=kwin_wayland --drm --no-lockscreen --no-global-shortcuts --locale1
 
 [X11]
-EnableHiDPI=true" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
+EnableHiDPI=true
+
+[Theme]
+background=/usr/share/wallpapers/DraugerOS/contents/images/1920x1080.png" | sudo tee "$CHROOT_LOCATION/etc/sddm.conf.d/settings.conf"
 else
 	echo "[General]
 GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
